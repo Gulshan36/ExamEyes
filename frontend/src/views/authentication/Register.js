@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Grid, Box, Card, Typography, Stack } from "@mui/material";
+import { Grid, Box, Card, Typography, Stack, CircularProgress } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import PageContainer from "src/components/container/PageContainer";
 import Logo from "src/layouts/full/shared/logo/Logo";
@@ -96,113 +96,205 @@ const Register = () => {
           height: "100vh",
           overflow: "hidden",
           background:
-            "linear-gradient(to right,rgb(31, 24, 131),rgb(87, 34, 37))", // Blue background like image
+            "linear-gradient(to right, rgb(31, 24, 131), rgb(87, 34, 37))",
         }}
       >
-        <Grid
-          container
-          spacing={0}
-          justifyContent="center"
-          alignItems="center"
-          sx={{ height: "100%" }}
-        >
-          <Grid item xs={12} sm={12} lg={6} xl={4}>
+        <Grid container spacing={0} alignItems="center" sx={{ height: "100%" }}>
+          <Grid item xs={12}>
             <Card
               elevation={9}
               sx={{
-                p: 3,
-                zIndex: 1,
+                p: 0,
+                zIndex: 7,
                 width: "100%",
-                maxWidth: "500px",
-                mx: "auto",
-                position: "relative",
-                borderRadius: 6,
+                maxWidth: "900px",
+                mx: "300px",
+                borderRadius: 10,
                 textAlign: "left",
-                backgroundColor: "#67dacd", // Light form background to match image
+                background: "linear-gradient(120deg, #fff 70%, #ed93c7 100%)",
+                border: "2px solid #c52d84",
+                boxShadow: "0 8px 32px 0 rgba(197,45,132,0.18)",
+                overflow: "visible",
               }}
             >
-              {/* Logo placeholder + Title */}
-              <Box mb={2}>
-                {/* Logo image */}
-                <Box
+              <Grid
+                container
+                spacing={0}
+                alignItems="stretch"
+                sx={{ minHeight: 400 }}
+              >
+                {/* Left Side - Form */}
+                <Grid
+                  item
+                  xs={12}
+                  md={6}
                   sx={{
-                    width: 60,
-                    height: 60,
-                    mx: "auto",
-                    mb: 1,
-                    borderRadius: 2,
-                    backgroundColor: "#ccc", // fallback color while image loads
                     display: "flex",
-                    alignItems: "center",
+                    flexDirection: "column",
                     justifyContent: "center",
-                    overflow: "hidden",
+                    alignItems: "center",
+                    px: 4,
+                    py: 4,
+                    background: "linear-gradient(135deg, #fff 60%, #41bcba 100%)",
+                    borderTopLeftRadius: 10,
+                    borderBottomLeftRadius: 10,
+                    boxShadow: "2px 0 16px 0 #41bcba22",
                   }}
                 >
-                  <img
-                    src="/logo.png"
-                    alt="Exam Eye Logo"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
+                  {/* Logo + Title */}
+                  <Box mb={2} textAlign="center">
+                    <Box
+                      sx={{
+                        width: 70,
+                        height: 70,
+                        mx: "auto",
+                        mb: 1,
+                        borderRadius: "50%",
+                        background: "linear-gradient(135deg, #c52d84 0%, #ed93c7 100%)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        overflow: "hidden",
+                        boxShadow: "0 2px 8px #c52d8455",
+                      }}
+                    >
+                      <img
+                        src="/logo.png"
+                        alt="Exam Eye Logo"
+                        style={{
+                          width: "80%",
+                          height: "80%",
+                          objectFit: "contain",
+                        }}
+                      />
+                    </Box>
+                    <Typography
+                      variant="h4"
+                      fontWeight="bold"
+                      color="#c52d84"
+                      textAlign="center"
+                      sx={{ textShadow: "1px 1px 8px #ed93c7" }}
+                    >
+                      Exam Eye
+                    </Typography>
+                  </Box>
+
+                  {/* Registration Form */}
+                  <AuthRegister
+                    formik={formik}
+                    onSubmit={handleSubmit}
+                    subtext={
+                      <Typography
+                        variant="subtitle1"
+                        textAlign="center"
+                        color="textSecondary"
+                        mb={0}
+                      >
+                        CONDUCT SECURE ONLINE EXAMS NOW
+                      </Typography>
+                    }
+                    subtitle={
+                      <Stack
+                        direction="row"
+                        justifyContent="center"
+                        spacing={1}
+                        mt={2}
+                        alignItems="center"
+                      >
+                        <Typography color="textSecondary" variant="body2">
+                          Already have an Account?
+                        </Typography>
+                        <Typography
+                          component={Link}
+                          to="/auth/login"
+                          fontWeight={500}
+                          sx={{ textDecoration: "none", color: "primary.main" }}
+                        >
+                          Sign In
+                        </Typography>
+                        {isLoading && (
+                          <CircularProgress size={20} sx={{ ml: 1 }} />
+                        )}
+                      </Stack>
+                    }
+                  />
+                </Grid>
+
+                {/* Divider between form and image */}
+                <Grid
+                  item
+                  sx={{
+                    display: { xs: "none", md: "flex" },
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      height: "80%",
+                      width: "3px",
+                      background: "linear-gradient(180deg, #c52d84 0%, #41bcba 100%)",
+                      mx: 2,
+                      borderRadius: 2,
                     }}
                   />
-                </Box>
+                </Grid>
 
-                {/* Title */}
-                <Typography
-                  variant="h4"
-                  component="h1"
-                  fontWeight="bold"
-                  color="primary"
-                  textAlign="center"
-                  sx={{ textShadow: "1px 1px 2px rgba(0, 0, 0, 0.3)" }}
+                {/* Right Side - Image + Text inside Card */}
+                <Grid
+                  item
+                  xs={12}
+                  md={6}
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                    px: 4,
+                    py: 4,
+                    background: "linear-gradient(135deg, #159fc1 0%, #ed93c7 50%)",
+                    borderTopRightRadius: 10,
+                    borderBottomRightRadius: 10,
+                    boxShadow: "-2px 0 16px 0 #ed93c722",
+                  }}
                 >
-                  Exam Eye
-                </Typography>
-              </Box>
-
-              {/* Registration Form */}
-              <AuthRegister
-                formik={formik}
-                onSubmit={handleSubmit}
-                subtext={
+                  <Box
+                    sx={{
+                      width: "100%",
+                      height: { xs: 180, md: 260 },
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      mb: 2,
+                    }}
+                  >
+                    <img
+                      src="/register.png"
+                      alt="Exam Illustration"
+                      style={{
+                        width: "100%",
+                        height: "110%",
+                        objectFit: "contain",
+                        borderRadius: 20,
+                        boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
+                        background: "#fff",
+                      }}
+                    />
+                  </Box>
                   <Typography
-                    variant="subtitle1"
-                    textAlign="center"
-                    color="textSecondary"
-                    mb={2}
+                    variant="h5"
+                    color="#fff"
+                    sx={{
+                      fontWeight: 700,
+                      textShadow: "1px 1px 8px #159fc1, 0 0 2px #41bcba",
+                      letterSpacing: 1,
+                    }}
                   >
-                    CONDUCT SECURE ONLINE EXAMS NOW
+                    Secure Online Exams & AI Proctoring
                   </Typography>
-                }
-                subtitle={
-                  <Stack
-                    direction="row"
-                    justifyContent="center"
-                    spacing={1}
-                    mt={3}
-                    alignItems="center"
-                  >
-                    <Typography
-                      color="textSecondary"
-                      variant="h6"
-                      fontWeight={400}
-                    >
-                      Already have an Account?
-                    </Typography>
-                    <Typography
-                      component={Link}
-                      to="/auth/login"
-                      fontWeight={500}
-                      sx={{ textDecoration: "none", color: "primary.main" }}
-                    >
-                      Sign In
-                    </Typography>
-                    {isLoading && <CircularProgress size={20} sx={{ ml: 2 }} />}
-                  </Stack>
-                }
-              />
+                </Grid>
+              </Grid>
             </Card>
           </Grid>
         </Grid>
@@ -211,3 +303,4 @@ const Register = () => {
   );
 };
 export default Register;
+

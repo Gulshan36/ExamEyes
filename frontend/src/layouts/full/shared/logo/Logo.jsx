@@ -1,21 +1,24 @@
-import { Link } from 'react-router-dom';
-import { styled } from '@mui/material';
+import { Link } from "react-router-dom";
+import { styled } from "@mui/material";
 
 const LinkStyled = styled(Link)(() => ({
-  height: '70px',
-  width: '180px',
-  overflow: 'hidden',
-  display: 'block',
+  height: "80px",
+  width: "180px",
+  overflow: "hidden",
+  display: "block",
 }));
 
 const Logo = () => {
   return (
     <LinkStyled to="/">
-      <img 
-        src="/images/logos/dark-logo.svg" 
-        alt="Logo" 
-        height={70} 
-        style={{ width: 'auto' }}
+      <img
+        src="/logo.png"
+        alt="Logo"
+        height={80}
+        style={{
+          width: "auto",
+          borderRadius: 40,
+        }}
       />
     </LinkStyled>
   );
