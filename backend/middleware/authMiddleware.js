@@ -7,6 +7,7 @@ const protect = asyncHandler(async (req, res, next) => {
   if (req.method === 'OPTIONS') {
     return next();
   }
+  
 
   // because of cookie parser we able to use this here
   let token = req.cookies.jwt;
