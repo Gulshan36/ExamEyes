@@ -1,37 +1,43 @@
-import React, { useEffect, useState } from 'react';
-import { Grid, Box, Card, Typography, Stack } from '@mui/material';
-import { Link, useNavigate } from 'react-router-dom';
-import PageContainer from 'src/components/container/PageContainer';
-import Logo from 'src/layouts/full/shared/logo/Logo';
-import AuthRegister from './auth/AuthRegister';
-import { useFormik } from 'formik';
-import * as yup from 'yup';
+import React, { useEffect, useState } from "react";
+import { Grid, Box, Card, Typography, Stack } from "@mui/material";
+import { Link, useNavigate } from "react-router-dom";
+import PageContainer from "src/components/container/PageContainer";
+import Logo from "src/layouts/full/shared/logo/Logo";
+import AuthRegister from "./auth/AuthRegister";
+import { useFormik } from "formik";
+import * as yup from "yup";
 
-import { useDispatch, useSelector } from 'react-redux';
-import { toast } from 'react-toastify';
-import { useRegisterMutation } from './../../slices/usersApiSlice';
-import { setCredentials } from './../../slices/authSlice';
-import Loader from './Loader';
+import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-toastify";
+import { useRegisterMutation } from "./../../slices/usersApiSlice";
+import { setCredentials } from "./../../slices/authSlice";
+import Loader from "./Loader";
 
 const userValidationSchema = yup.object({
-  name: yup.string().min(2).max(25).required('Please enter your name'),
-  email: yup.string('Enter your email').email('Enter a valid email').required('Email is required'),
+  name: yup.string().min(2).max(25).required("Please enter your name"),
+  email: yup
+    .string("Enter your email")
+    .email("Enter a valid email")
+    .required("Email is required"),
   password: yup
-    .string('Enter your password')
-    .min(6, 'Password should be of minimum 6 characters length')
-    .required('Password is required'),
+    .string("Enter your password")
+    .min(6, "Password should be of minimum 6 characters length")
+    .required("Password is required"),
   confirm_password: yup
     .string()
-    .required('Confirm Password is required')
-    .oneOf([yup.ref('password'), null], 'Password must match'),
-  role: yup.string().oneOf(['student', 'teacher'], 'Invalid role').required('Role is required'),
+    .required("Confirm Password is required")
+    .oneOf([yup.ref("password"), null], "Password must match"),
+  role: yup
+    .string()
+    .oneOf(["student", "teacher"], "Invalid role")
+    .required("Role is required"),
 });
 const initialUserValues = {
-  name: '',
-  email: '',
-  password: '',
-  confirm_password: '',
-  role: 'student',
+  name: "",
+  email: "",
+  password: "",
+  confirm_password: "",
+  role: "student",
 };
 
 const Register = () => {
@@ -52,7 +58,7 @@ const Register = () => {
 
   useEffect(() => {
     if (userInfo) {
-      navigate('/');
+      navigate("/");
     }
   }, [navigate, userInfo]);
 
@@ -60,127 +66,148 @@ const Register = () => {
     e.preventDefault();
   };
 
-  const handleSubmit = async ({ name, email, password, confirm_password, role }) => {
+  const handleSubmit = async ({
+    name,
+    email,
+    password,
+    confirm_password,
+    role,
+  }) => {
     if (password !== confirm_password) {
-      toast.error('Passwords do not match');
+      toast.error("Passwords do not match");
     } else {
       try {
         const res = await register({ name, email, password, role }).unwrap();
         dispatch(setCredentials({ ...res }));
         formik.resetForm();
 
-        navigate('/auth/login');
+        navigate("/auth/login");
       } catch (err) {
         toast.error(err?.data?.message || err.error);
       }
     }
   };
 
- return (
-  <PageContainer title="Register" description="This is the Register page">
-    <Box
-      sx={{
-        position: 'relative',
-        height: '100vh',
-        overflow: 'hidden',
-        background: 'linear-gradient(to right, #0f97b7, #1794bc)', // Blue background like image
-      }}
-    >
-      <Grid
-        container
-        spacing={0}
-        justifyContent="center"
-        alignItems="center"
-        sx={{ height: '100%' }}
+  return (
+    <PageContainer title="Register" description="This is the Register page">
+      <Box
+        sx={{
+          position: "relative",
+          height: "100vh",
+          overflow: "hidden",
+          background:
+            "linear-gradient(to right,rgb(31, 24, 131),rgb(87, 34, 37))", // Blue background like image
+        }}
       >
-        <Grid item xs={12} sm={12} lg={6} xl={4}>
-          <Card
-            elevation={9}
-            sx={{
-              p: 4,
-              zIndex: 1,
-              width: '100%',
-              maxWidth: '500px',
-              mx: 'auto',
-              position: 'relative',
-              borderRadius: 3,
-              textAlign: 'left',
-              backgroundColor: '#e1f0f9', // Light form background to match image
-            }}
-          >
-            {/* Logo placeholder + Title */}
-            <Box mb={2}>
-              {/* Logo box */}
-              <Box
-                sx={{
-                  width: 60,
-                  height: 60,
-                  backgroundColor: '#ccc',
-                  borderRadius: 2,
-                  mx: 'auto',
-                  mb: 1,
-                }}
-              />
-              <Typography
-                variant="h4"
-                component="h1"
-                fontWeight="bold"
-                color="primary"
-                textAlign="center"
-                sx={{ textShadow: '1px 1px 2px rgba(0, 0, 0, 0.3)' }}
-              >
-                Exam Eye
-              </Typography>
-            </Box>
+        <Grid
+          container
+          spacing={0}
+          justifyContent="center"
+          alignItems="center"
+          sx={{ height: "100%" }}
+        >
+          <Grid item xs={12} sm={12} lg={6} xl={4}>
+            <Card
+              elevation={9}
+              sx={{
+                p: 3,
+                zIndex: 1,
+                width: "100%",
+                maxWidth: "500px",
+                mx: "auto",
+                position: "relative",
+                borderRadius: 6,
+                textAlign: "left",
+                backgroundColor: "#67dacd", // Light form background to match image
+              }}
+            >
+              {/* Logo placeholder + Title */}
+              <Box mb={2}>
+                {/* Logo image */}
+                <Box
+                  sx={{
+                    width: 60,
+                    height: 60,
+                    mx: "auto",
+                    mb: 1,
+                    borderRadius: 2,
+                    backgroundColor: "#ccc", // fallback color while image loads
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                  }}
+                >
+                  <img
+                    src="/logo.png"
+                    alt="Exam Eye Logo"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                </Box>
 
-
-<Box display="flex" justifyContent="center" mb={1}>
-  <img src="/path-to-logo.png" alt="Exam Eye Logo" width={60} height={60} />
-</Box>
-
-
-            {/* Registration Form */}
-            <AuthRegister
-              formik={formik}
-              onSubmit={handleSubmit}
-              subtext={
+                {/* Title */}
                 <Typography
-                  variant="subtitle1"
+                  variant="h4"
+                  component="h1"
+                  fontWeight="bold"
+                  color="primary"
                   textAlign="center"
-                  color="textSecondary"
-                  mb={2}
+                  sx={{ textShadow: "1px 1px 2px rgba(0, 0, 0, 0.3)" }}
                 >
-                  CONDUCT SECURE ONLINE EXAMS NOW
+                  Exam Eye
                 </Typography>
-              }
-              subtitle={
-                <Stack
-                  direction="row"
-                  justifyContent="center"
-                  spacing={1}
-                  mt={3}
-                  alignItems="center"
-                >
-                  <Typography color="textSecondary" variant="h6" fontWeight={400}>
-                    Already have an Account?
-                  </Typography>
+              </Box>
+
+              {/* Registration Form */}
+              <AuthRegister
+                formik={formik}
+                onSubmit={handleSubmit}
+                subtext={
                   <Typography
-                    component={Link}
-                    to="/auth/login"
-                    fontWeight={500}
-                    sx={{ textDecoration: 'none', color: 'primary.main' }}
+                    variant="subtitle1"
+                    textAlign="center"
+                    color="textSecondary"
+                    mb={2}
                   >
-                    Sign In
+                    CONDUCT SECURE ONLINE EXAMS NOW
                   </Typography>
-                  {isLoading && <CircularProgress size={20} sx={{ ml: 2 }} />}
-                </Stack>
-              }
-            />
-          </Card>
+                }
+                subtitle={
+                  <Stack
+                    direction="row"
+                    justifyContent="center"
+                    spacing={1}
+                    mt={3}
+                    alignItems="center"
+                  >
+                    <Typography
+                      color="textSecondary"
+                      variant="h6"
+                      fontWeight={400}
+                    >
+                      Already have an Account?
+                    </Typography>
+                    <Typography
+                      component={Link}
+                      to="/auth/login"
+                      fontWeight={500}
+                      sx={{ textDecoration: "none", color: "primary.main" }}
+                    >
+                      Sign In
+                    </Typography>
+                    {isLoading && <CircularProgress size={20} sx={{ ml: 2 }} />}
+                  </Stack>
+                }
+              />
+            </Card>
+          </Grid>
         </Grid>
-      </Grid>
-    </Box>
-  </PageContainer>
-);
+      </Box>
+    </PageContainer>
+  );
 };
 export default Register;
