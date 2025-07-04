@@ -1,15 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Button,
-  TextField,
-  FormControlLabel,
-  Checkbox,
-  Stack,
-  Select,
-  MenuItem,
-  Typography,
-} from '@mui/material';
+import { Box, Button, TextField, FormControlLabel, Checkbox, Stack, Select, MenuItem, Typography, Paper, Divider } from '@mui/material';
 import swal from 'sweetalert';
 import { useCreateQuestionMutation, useGetExamsQuery, useGetQuestionsQuery, useUpdateQuestionMutation } from 'src/slices/examApiSlice';
 import { toast } from 'react-toastify';
@@ -113,58 +103,160 @@ const AddQuestionForm = () => {
   };
 
   return (
-    <div>
-      <Select
-        label="Select Exam"
-        value={selectedExamId}
-        onChange={(e) => {
-          console.log(e.target.value, 'option ID');
-          setSelectedExamId(e.target.value);
-          setEditingQuestionId(null);
-          setNewQuestion('');
-          setNewOptions(['', '', '', '']);
-          setCorrectOptions([false, false, false, false]);
+    <Paper
+      elevation={2}
+      sx={{
+        p: { xs: 0, md: 0 },
+        borderRadius: 5,
+        background: '#f3e8f7', // single color for the section
+        boxShadow: '0 2px 8px 0 #e0e0e0',
+        maxWidth: 1100,
+        mx: 'auto',
+        border: '1px solid #e0e0e0',
+        mt: 2,
+        mb: 2,
+      }}
+    >
+      <Typography
+        variant="h5"
+        align="center"
+        sx={{
+          fontWeight: 600,
+          color: '#c52d84',
+          mb: 4,
+          letterSpacing: 1,
         }}
-        fullWidth
-        sx={{ mb: 2 }}
       >
-        {examsData &&
-          examsData.map((exam) => (
-            <MenuItem key={exam.examId} value={exam.examId}>
-              {exam.examName}
-            </MenuItem>
-          ))}
-      </Select>
+        Add & Manage Exam Questions
+      </Typography>
+      <Divider sx={{ mb: 0 }} />
+        <Typography variant="h6" mb={1} sx={{ color: "#c52d84" }}>
+        Select Exam:
+      </Typography>
+      <Box sx={{ mb: 3, display: "flex", justifyContent: "center" }}>
+        <Select
+          label="Select Exam"
+          value={selectedExamId}
+          onChange={(e) => {
+            setSelectedExamId(e.target.value);
+            setEditingQuestionId(null);
+            setNewQuestion('');
+            setNewOptions(['', '', '', '']);
+            setCorrectOptions([false, false, false, false]);
+          }}
+          size="small"
+          sx={{
+            minWidth: 400,
+            maxWidth: 300,
+            background: "#fff",
+            borderRadius: 2,
+          }}
+        >
+          {examsData &&
+            examsData.map((exam) => (
+              <MenuItem key={exam.examId} value={exam.examId}>
+                {exam.examName}
+              </MenuItem>
+            ))}
+        </Select>
+      </Box>
 
-      <Typography variant="h6" mb={2}>Existing Questions:</Typography>
+      <Typography variant="h6" mb={2} sx={{ color: "#c52d84" }}>
+        Existing Questions:
+      </Typography>
       {questions.length === 0 ? (
         <Typography mb={2}>No questions for this exam yet.</Typography>
       ) : (
-        questions.map((questionObj) => (
-          <Box key={questionObj._id} sx={{ mb: 3, p: 2, border: '1px solid #e0e0e0', borderRadius: '4px' }}>
+        questions.map((questionObj, idx) => (
+          <Box
+            key={questionObj._id}
+            sx={{
+              mb: 3,
+              p: 5,
+              border: '3px solid #e0e0e0',
+              borderRadius: '9px',
+              background: "#fff",
+              boxShadow: "0 2px 8px #e0e0e022",
+            }}
+          >
             <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
-              <Typography variant="subtitle1">{questionObj.question}</Typography>
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  color: "#070707",
+                  fontWeight: 600,
+                  fontSize: "1.1rem",
+                  flex: 1,
+                  pr: 2,
+                }}
+              >
+                {`${idx + 1}. ${questionObj.question}`}
+              </Typography>
               <Button
                 variant="outlined"
                 size="small"
                 onClick={() => handleEditQuestion(questionObj)}
                 disabled={editingQuestionId !== null}
+                sx={{ borderColor: "#c52d84", color: "#c52d84", minWidth: 10 }}
               >
                 Edit
               </Button>
             </Stack>
-            {questionObj.options.map((option, optionIndex) => (
-              <FormControlLabel
-                key={option._id}
-                control={<Checkbox checked={option.isCorrect} disabled />}
-                label={option.optionText}
-              />
-            ))}
+            <Stack direction="row" spacing={2} flexWrap="wrap" mt={1}>
+              {questionObj.options.map((option, optionIndex) => (
+                <Box
+                  key={option._id}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    background: option.isCorrect ? "#41bcba22" : "#f3e8f7",
+                    borderRadius: 2,
+                    px: 2,
+                    py: 0.5,
+                    mr: 1,
+                    mb: 1,
+                    border: option.isCorrect ? "2px solid #41bcba" : "1px solid #e0e0e0",
+                  }}
+                >
+                  <Checkbox
+                    checked={option.isCorrect}
+                    disabled
+                    sx={{
+                      color: option.isCorrect ? "#41bcba" : "#bdbdbd",
+                      p: 0.5,
+                    }}
+                  />
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: option.isCorrect ? "#41bcba" : "#333",
+                      fontWeight: option.isCorrect ? 700 : 400,
+                      ml: 1,
+                    }}
+                  >
+                    {option.optionText}
+                  </Typography>
+                  {option.isCorrect && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: "#41bcba",
+                        fontWeight: 700,
+                        ml: 1,
+                        letterSpacing: 1,
+                      }}
+                    >
+                      (Correct)
+                    </Typography>
+                  )}
+                </Box>
+              ))}
+            </Stack>
           </Box>
         ))
       )}
 
-      <Typography variant="h6" mt={4} mb={2}>
+      <Typography variant="h6" mt={4} mb={2} sx={{ color: "#c52d84" }}>
         {editingQuestionId ? 'Edit Question' : 'Add New Question'}
       </Typography>
       <TextField
@@ -174,7 +266,7 @@ const AddQuestionForm = () => {
         fullWidth
         multiline
         rows={4}
-        sx={{ mb: 1 }}
+        sx={{ mb: 1, background: "#fff", borderRadius: 3 }}
       />
 
       {newOptions.map((option, index) => (
@@ -195,13 +287,14 @@ const AddQuestionForm = () => {
               setNewOptions(updatedOptions);
             }}
             fullWidth
-            sx={{ flex: '80%' }}
+            sx={{ flex: '80%', background: "#fff", borderRadius: 2 }}
           />
           <FormControlLabel
             control={
               <Checkbox
                 checked={correctOptions[index]}
                 onChange={() => handleOptionChange(index)}
+                sx={{ color: "#41bcba" }}
               />
             }
             label={`Correct Option ${index + 1}`}
@@ -214,19 +307,20 @@ const AddQuestionForm = () => {
           variant="contained"
           onClick={handleAddOrUpdateQuestion}
           disabled={isCreating || isUpdating}
+          sx={{ background: "#c52d84" }}
         >
           {editingQuestionId ? 'Update Question' : 'Add Question'}
         </Button>
         {editingQuestionId && (
-          <Button variant="outlined" onClick={handleCancelEdit}>
+          <Button variant="outlined" onClick={handleCancelEdit} sx={{ borderColor: "#c52d84", color: "#c52d84" }}>
             Cancel Edit
           </Button>
         )}
-        <Button variant="contained" onClick={handleSubmitQuestions}>
+        <Button variant="contained" onClick={handleSubmitQuestions} sx={{ background: "#41bcba" }}>
           Submit Questions
         </Button>
       </Stack>
-    </div>
+    </Paper>
   );
 };
 
