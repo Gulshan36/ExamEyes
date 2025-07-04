@@ -146,9 +146,9 @@ const Register = () => {
                     <Box
                       sx={{
                         width: 70,
-                        height: 70,
+                        height: 50,
                         mx: "auto",
-                        mb: 1,
+                        mb: 0,
                         borderRadius: "50%",
                         background: "linear-gradient(135deg, #c52d84 0%, #ed93c7 100%)",
                         display: "flex",
