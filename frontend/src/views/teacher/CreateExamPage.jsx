@@ -95,49 +95,80 @@ const CreateExamPage = () => {
     <PageContainer title={examId ? "Edit Exam" : "Create Exam"} description={examId ? "Edit an existing exam" : "Create a new exam"}>
       <Box
         sx={{
-          position: 'relative',
-          '&:before': {
-            content: '""',
-            background: 'radial-gradient(#d2f1df, #d3d7fa, #bad8f4)',
-            backgroundSize: '400% 400%',
-            animation: 'gradient 15s ease infinite',
-            position: 'absolute',
-            height: '100%',
-            width: '100%',
-            opacity: '0.3',
-          },
+          minHeight: '100vh',
+          background: 'linear-gradient(120deg, #41bcba 0%, #ed93c7 100%)',
+          py: 6,
         }}
       >
-        <Grid container spacing={0} justifyContent="center" sx={{ height: '100vh' }}>
-          <Grid
-            item
-            xs={12}
-            sm={12}
-            lg={12}
-            xl={6}
-            display="flex"
-            justifyContent="center"
-            alignItems="center"
+        <Box
+          sx={{
+            maxWidth: 850,
+            mx: 'auto',
+            boxShadow: '0 8px 32px 0 rgba(65,188,186,0.18)',
+            borderRadius: 4,
+            background: '#fff',
+            p: { xs: 2, md: 4 },
+            mb: 4,
+            border: '3px solid #41bcba',
+          }}
+        >
+          <Typography
+            variant="h3"
+            align="center"
+            sx={{
+              fontWeight: 700,
+              color: '#159fc1',
+              mb: 2,
+              textShadow: '2px 2px 8px #ed93c7',
+              letterSpacing: 2,
+            }}
           >
-            {isExamLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                <Typography>Loading Exam Details...</Typography>
-              </Box>
-            ) : (
-              <Card elevation={9} sx={{ p: 4, zIndex: 1, width: '100%', maxWidth: '800px' }}>
-                <ExamForm
-                  formik={formik}
-                  title={
-                    <Typography variant="h3" textAlign="center" color="textPrimary" mb={1}>
-                      {examId ? 'Edit Exam' : 'Create Exam'}
-                    </Typography>
-                  }
-                  submitButtonText={examId ? "Update Exam" : "Create Exam"}
-                />
-              </Card>
-            )}
-          </Grid>
-        </Grid>
+            {examId ? 'Edit Exam' : 'Create Exam'}
+          </Typography>
+          <Typography
+            variant="subtitle1"
+            align="center"
+            sx={{
+              color: '#c52d84',
+              mb: 2,
+              fontWeight: 500,
+              letterSpacing: 1,
+            }}
+          >
+            {examId
+              ? "Update the details of your exam below."
+              : "Fill out the form below to create a new exam."}
+          </Typography>
+          {isExamLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+              <Typography>Loading Exam Details...</Typography>
+            </Box>
+          ) : (
+            <Card
+              elevation={9}
+              sx={{
+                p: 4,
+                zIndex: 1,
+                width: '100%',
+                maxWidth: '800px',
+                mx: 'auto',
+                background: "linear-gradient(120deg, #fff 80%, #ed93c7 100%)",
+                borderRadius: 3,
+                boxShadow: "0 4px 16px 0 #41bcba22",
+              }}
+            >
+              <ExamForm
+                formik={formik}
+                title={
+                  <Typography variant="h4" textAlign="center" color="#41bcba" mb={1} fontWeight={700}>
+                    {examId ? 'Edit Exam' : 'Create Exam'}
+                  </Typography>
+                }
+                submitButtonText={examId ? "Update Exam" : "Create Exam"}
+              />
+            </Card>
+          )}
+        </Box>
       </Box>
     </PageContainer>
   );

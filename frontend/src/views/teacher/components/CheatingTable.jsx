@@ -23,6 +23,7 @@ import {
   IconButton,
   Tooltip,
   Chip,
+  Divider,
 } from '@mui/material';
 import { useGetExamsQuery } from 'src/slices/examApiSlice';
 import { useGetCheatingLogsQuery } from 'src/slices/cheatingLogApiSlice';
@@ -114,8 +115,35 @@ export default function CheatingTable() {
   }
 
   return (
-    <Box>
-      <Paper sx={{ p: 2, mb: 2 }}>
+    <Box
+      sx={{
+        background: "#fff",
+        borderRadius: 4,
+        boxShadow: "0 4px 16px 0 #41bcba22",
+        p: { xs: 2, md: 4 },
+        mb: 2,
+        border: "2px solid #41bcba",
+        maxWidth: 1050,
+        mx: "auto",
+        mt: 2,
+      }}
+    >
+      <Typography
+        variant="h4"
+        align="center"
+        sx={{
+          fontWeight: 700,
+          color: "#159fc1",
+          mb: 2,
+          textShadow: "2px 2px 8px #ed93c7",
+          letterSpacing: 2,
+        }}
+      >
+        Cheating & Activity Logs
+      </Typography>
+      <Divider sx={{ mb: 3, background: "linear-gradient(90deg, #41bcba 0%, #ed93c7 100%)", height: 3, borderRadius: 2 }} />
+
+      <Paper sx={{ p: 2, mb: 2, background: "#f8fafd", borderRadius: 3 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} md={6}>
             <Select
@@ -123,6 +151,13 @@ export default function CheatingTable() {
               value={selectedExamId || ''}
               onChange={(e) => setSelectedExamId(e.target.value)}
               fullWidth
+              size="small"
+              sx={{
+                background: "#fff",
+                borderRadius: 2,
+                minWidth: 220,
+                maxWidth: 300,
+              }}
             >
               {examsData.map((exam) => (
                 <MenuItem key={exam.examId} value={exam.examId}>
@@ -136,8 +171,10 @@ export default function CheatingTable() {
               label="Filter by Name or Email"
               variant="outlined"
               fullWidth
+              size="small"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
+              sx={{ background: "#fff", borderRadius: 2 }}
             />
           </Grid>
         </Grid>
@@ -154,18 +191,18 @@ export default function CheatingTable() {
           </Typography>
         </Box>
       ) : (
-        <TableContainer component={Paper}>
+        <TableContainer component={Paper} sx={{ borderRadius: 3, background: "#f8fafd" }}>
           <Table>
             <TableHead>
-              <TableRow>
-                <TableCell>Sno</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>No Face Count</TableCell>
-                <TableCell>Multiple Face Count</TableCell>
-                <TableCell>Cell Phone Count</TableCell>
-                <TableCell>Prohibited Object Count</TableCell>
-                <TableCell>Screenshots</TableCell>
+              <TableRow sx={{ background: "#41bcba22" }}>
+                <TableCell sx={{ fontWeight: 700, color: "#159fc1" }}>Sr.No</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#159fc1" }}>Name</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#159fc1" }}>Email</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#c52d84" }}>No Face Count</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#c52d84" }}>Multiple Face Count</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#c52d84" }}>Cell Phone Count</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#c52d84" }}>Prohibited Object Count</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: "#159fc1" }}>Screenshots</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -177,7 +214,7 @@ export default function CheatingTable() {
                 </TableRow>
               ) : (
                 filteredUsers.map((log, index) => (
-                  <TableRow key={index}>
+                  <TableRow key={index} hover sx={{ transition: "background 0.2s", "&:hover": { background: "#e3f7f6" } }}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>{log.username}</TableCell>
                     <TableCell>{log.email}</TableCell>
@@ -187,6 +224,7 @@ export default function CheatingTable() {
                         label={log.noFaceCount}
                         color={getViolationColor(log.noFaceCount)}
                         size="small"
+                        sx={{ fontWeight: 600 }}
                       />
                     </TableCell>
                     <TableCell>
@@ -195,6 +233,7 @@ export default function CheatingTable() {
                         label={log.multipleFaceCount}
                         color={getViolationColor(log.multipleFaceCount)}
                         size="small"
+                        sx={{ fontWeight: 600 }}
                       />
                     </TableCell>
                     <TableCell>
@@ -203,6 +242,7 @@ export default function CheatingTable() {
                         label={log.cellPhoneCount}
                         color={getViolationColor(log.cellPhoneCount)}
                         size="small"
+                        sx={{ fontWeight: 600 }}
                       />
                     </TableCell>
                     <TableCell>
@@ -211,6 +251,7 @@ export default function CheatingTable() {
                         label={log.prohibitedObjectCount}
                         color={getViolationColor(log.prohibitedObjectCount)}
                         size="small"
+                        sx={{ fontWeight: 600 }}
                       />
                     </TableCell>
                     <TableCell>
@@ -245,13 +286,13 @@ export default function CheatingTable() {
           <Grid container spacing={2}>
             {selectedLog?.screenshots?.map((screenshot, index) => (
               <Grid item xs={12} sm={6} md={4} key={index}>
-                <Card>
+                <Card sx={{ borderRadius: 3, boxShadow: "0 2px 8px #41bcba22" }}>
                   <CardMedia
                     component="img"
                     height="200"
                     image={screenshot.url}
                     alt={`Violation - ${screenshot.type}`}
-                    sx={{ objectFit: 'cover' }}
+                    sx={{ objectFit: 'cover', borderRadius: 2 }}
                   />
                   <CardContent>
                     <Typography variant="subtitle2" color="text.secondary">

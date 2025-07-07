@@ -103,37 +103,37 @@ const AddQuestionForm = () => {
   };
 
   return (
-    <Paper
-      elevation={2}
+    <Box
       sx={{
-        p: { xs: 0, md: 0 },
+        background: "#fff",
         borderRadius: 5,
-        background: '#f3e8f7', // single color for the section
-        boxShadow: '0 2px 8px 0 #e0e0e0',
-        maxWidth: 1100,
-        mx: 'auto',
-        border: '1px solid #e0e0e0',
+        boxShadow: "0 8px 32px 0 #41bcba22",
+        p: { xs: 3, md: 5 },
+        mb: 3,
+        border: "2px solid #41bcba",
+        maxWidth: 900,
+        mx: "auto",
         mt: 2,
-        mb: 2,
       }}
     >
       <Typography
-        variant="h5"
+        variant="h4"
         align="center"
         sx={{
-          fontWeight: 600,
-          color: '#c52d84',
-          mb: 4,
-          letterSpacing: 1,
+          fontWeight: 700,
+          color: "#159fc1",
+          mb: 1,
+          textShadow: "2px 2px 8px #ed93c7",
+          letterSpacing: 2,
         }}
       >
         Add & Manage Exam Questions
       </Typography>
-      <Divider sx={{ mb: 0 }} />
-        <Typography variant="h6" mb={1} sx={{ color: "#c52d84" }}>
+      <Divider sx={{ mb: 2, background: "linear-gradient(90deg, #41bcba 0%, #ed93c7 100%)", height: 5, borderRadius: 2 }} />
+      <Typography variant="h6" mb={1} sx={{ color: "#c52d84" }}>
         Select Exam:
       </Typography>
-      <Box sx={{ mb: 3, display: "flex", justifyContent: "center" }}>
+      <Box sx={{ mb: 2, display: "flex", justifyContent: "center" }}>
         <Select
           label="Select Exam"
           value={selectedExamId}
@@ -146,9 +146,9 @@ const AddQuestionForm = () => {
           }}
           size="small"
           sx={{
-            minWidth: 400,
+            minWidth: 220,
             maxWidth: 300,
-            background: "#fff",
+            background: "#f8fafd",
             borderRadius: 2,
           }}
         >
@@ -161,6 +161,8 @@ const AddQuestionForm = () => {
         </Select>
       </Box>
 
+      <Divider sx={{ mb: 1, background: "#f3e8f7", height: 2, borderRadius: 2 }} />
+
       <Typography variant="h6" mb={2} sx={{ color: "#c52d84" }}>
         Existing Questions:
       </Typography>
@@ -171,11 +173,11 @@ const AddQuestionForm = () => {
           <Box
             key={questionObj._id}
             sx={{
-              mb: 3,
-              p: 5,
-              border: '3px solid #e0e0e0',
+              mb: 1,
+              p: 1,
+              border: '2px solid #e0e0e0',
               borderRadius: '9px',
-              background: "#fff",
+              background: "#f8fafd",
               boxShadow: "0 2px 8px #e0e0e022",
             }}
           >
@@ -209,7 +211,7 @@ const AddQuestionForm = () => {
                   sx={{
                     display: "flex",
                     alignItems: "center",
-                    background: option.isCorrect ? "#41bcba22" : "#f3e8f7",
+                    background: option.isCorrect ? "#41bcba22" : "#fff",
                     borderRadius: 2,
                     px: 2,
                     py: 0.5,
@@ -256,71 +258,85 @@ const AddQuestionForm = () => {
         ))
       )}
 
-      <Typography variant="h6" mt={4} mb={2} sx={{ color: "#c52d84" }}>
+      <Divider sx={{ mb: 1, background: "#f3e8f7", height: 2, borderRadius: 2 }} />
+
+
+      <Typography variant="h6" mt={2} mb={2} sx={{ color: "#c52d84" }}>
         {editingQuestionId ? 'Edit Question' : 'Add New Question'}
       </Typography>
-      <TextField
-        label="Question"
-        value={newQuestion}
-        onChange={(e) => setNewQuestion(e.target.value)}
-        fullWidth
-        multiline
-        rows={4}
-        sx={{ mb: 1, background: "#fff", borderRadius: 3 }}
-      />
+      <Box
+        sx={{
+          mb: 3,
+          p: 3,
+          border: '2px solid #e0e0e0',
+          borderRadius: '9px',
+          background: "#f8fafd",
+          boxShadow: "0 2px 8px #e0e0e022",
+        }}
+      >
+        <TextField
+          label="Question"
+          value={newQuestion}
+          onChange={(e) => setNewQuestion(e.target.value)}
+          fullWidth
+          multiline
+          rows={4}
+          sx={{ mb: 1, background: "#fff", borderRadius: 3 }}
+        />
 
-      {newOptions.map((option, index) => (
-        <Stack
-          key={index}
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          spacing={1}
-          mb={1}
-        >
-          <TextField
-            label={`Option ${index + 1}`}
-            value={newOptions[index]}
-            onChange={(e) => {
-              const updatedOptions = [...newOptions];
-              updatedOptions[index] = e.target.value;
-              setNewOptions(updatedOptions);
-            }}
-            fullWidth
-            sx={{ flex: '80%', background: "#fff", borderRadius: 2 }}
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={correctOptions[index]}
-                onChange={() => handleOptionChange(index)}
-                sx={{ color: "#41bcba" }}
-              />
-            }
-            label={`Correct Option ${index + 1}`}
-          />
-        </Stack>
-      ))}
+        {newOptions.map((option, index) => (
+          <Stack
+            key={index}
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            spacing={1}
+            mb={1}
+          >
+            <TextField
+              label={`Option ${index + 1}`}
+              value={newOptions[index]}
+              onChange={(e) => {
+                const updatedOptions = [...newOptions];
+                updatedOptions[index] = e.target.value;
+                setNewOptions(updatedOptions);
+              }}
+              fullWidth
+              sx={{ flex: '70%', background: "#fff", borderRadius: 2 }}
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={correctOptions[index]}
+                  onChange={() => handleOptionChange(index)}
+                  sx={{ color: "#41bcba" }}
+                />
+              }
+              label={`Correct Option ${index + 1}`}
+            />
+          </Stack>
+        ))}
 
-      <Stack mt={2} direction="row" spacing={2}>
-        <Button
-          variant="contained"
-          onClick={handleAddOrUpdateQuestion}
-          disabled={isCreating || isUpdating}
-          sx={{ background: "#c52d84" }}
-        >
-          {editingQuestionId ? 'Update Question' : 'Add Question'}
-        </Button>
-        {editingQuestionId && (
-          <Button variant="outlined" onClick={handleCancelEdit} sx={{ borderColor: "#c52d84", color: "#c52d84" }}>
-            Cancel Edit
+        <Stack mt={2} direction="row" spacing={2}>
+          <Button
+            variant="contained"
+            onClick={handleAddOrUpdateQuestion}
+            disabled={isCreating || isUpdating}
+            sx={{ background: "#c52d84" }}
+          >
+            {editingQuestionId ? 'Update Question' : 'Add Question'}
           </Button>
-        )}
-        <Button variant="contained" onClick={handleSubmitQuestions} sx={{ background: "#41bcba" }}>
-          Submit Questions
-        </Button>
-      </Stack>
-    </Paper>
+          {editingQuestionId && (
+            <Button variant="outlined" onClick={handleCancelEdit} sx={{ borderColor: "#c52d84", color: "#c52d84" }}>
+              Cancel Edit
+            </Button>
+          )}
+          <Button variant="contained" onClick={handleSubmitQuestions} sx={{ background: "#41bcba" }}>
+            Submit Questions
+          </Button>
+        </Stack>
+      </Box>
+    </Box>
   );
 };
 

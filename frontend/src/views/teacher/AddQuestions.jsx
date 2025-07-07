@@ -24,11 +24,6 @@ const AddQuestions = () => {
             p: { xs: 2, md: 6 },
             mb: 4,
             border: '2px solid #41bcba',
-            transition: 'border-color 0.3s, box-shadow 0.3s',
-            '&:hover': {
-              borderColor: '#c52d84',
-              boxShadow: '0 12px 40px 0 #c52d8455',
-            },
           }}
         >
           <Typography
