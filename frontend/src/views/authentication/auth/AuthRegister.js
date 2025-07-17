@@ -1,11 +1,13 @@
-import React from 'react';
-import { Box, Typography, Button, Select, MenuItem } from '@mui/material';
+import React from "react";
+import { Box, Typography, Button, Select, MenuItem } from "@mui/material";
 
-import CustomTextField from '../../../components/forms/theme-elements/CustomTextField';
-import { Stack } from '@mui/system';
+import CustomTextField from "../../../components/forms/theme-elements/CustomTextField";
+import { Stack } from "@mui/system";
+import { MoveLeft } from "lucide-react";
 
 const AuthRegister = ({ formik, title, subtitle, subtext }) => {
-  const { values, errors, touched, handleBlur, handleChange, handleSubmit } = formik;
+  const { values, errors, touched, handleBlur, handleChange, handleSubmit } =
+    formik;
   return (
     <>
       {title ? (
@@ -16,8 +18,8 @@ const AuthRegister = ({ formik, title, subtitle, subtext }) => {
 
       {subtext}
 
-      <Box component="form">
-        <Stack mb={1}>
+      <Stack mb={2}>
+        <Box>
           <Typography
             variant="subtitle1"
             fontWeight={600}
@@ -37,12 +39,14 @@ const AuthRegister = ({ formik, title, subtitle, subtext }) => {
             onBlur={handleBlur}
             error={touched.name && errors.name ? true : false}
             helperText={touched.name && errors.name ? errors.name : null}
-            // onChange={onNameChange} // Call the callback function on change
             fullWidth
             required
-            //   size="small"
+            size="medium"
+            
           />
+        </Box>
 
+        <Box mt="13px">
           <Typography
             variant="subtitle1"
             fontWeight={600}
@@ -65,10 +69,12 @@ const AuthRegister = ({ formik, title, subtitle, subtext }) => {
             helperText={touched.email && errors.email ? errors.email : null}
             required
             fullWidth
-            // onChange={onEmailChange} // Call the callback function on change
-            //   size="small"
+            size="medium"
+            
           />
+        </Box>
 
+        <Box mt="13px">
           <Typography
             variant="subtitle1"
             fontWeight={600}
@@ -84,16 +90,22 @@ const AuthRegister = ({ formik, title, subtitle, subtext }) => {
             name="password"
             type="password"
             variant="outlined"
+            placeholder="Enter password"
             value={values.password}
             onChange={handleChange}
             onBlur={handleBlur}
             error={touched.password && errors.password ? true : false}
-            helperText={touched.password && errors.password ? errors.password : null}
+            helperText={
+              touched.password && errors.password ? errors.password : null
+            }
             required
             fullWidth
-            // onChange={onPasswordChange} // Call the callback function on change
-            //   size="small"
+            size="medium"
+            
           />
+        </Box>
+
+        <Box mt="13px">
           <Typography
             variant="subtitle1"
             fontWeight={600}
@@ -110,19 +122,26 @@ const AuthRegister = ({ formik, title, subtitle, subtext }) => {
             type="password"
             autoComplete="false"
             variant="outlined"
+            placeholder="Confirm your Password"
             value={values.confirm_password}
             onChange={handleChange}
             onBlur={handleBlur}
-            error={touched.confirm_password && errors.confirm_password ? true : false}
+            error={
+              touched.confirm_password && errors.confirm_password ? true : false
+            }
             helperText={
-              touched.confirm_password && errors.confirm_password ? errors.confirm_password : null
+              touched.confirm_password && errors.confirm_password
+                ? errors.confirm_password
+                : null
             }
             fullWidth
             required
-            // onChange={onConfirmPasswordChange} // Call the callback function on change
-            //   size="small"
+            size="medium"
+            
           />
-          <Typography
+        </Box>
+
+        <Typography
             variant="subtitle1"
             fontWeight={600}
             component="label"
@@ -140,29 +159,24 @@ const AuthRegister = ({ formik, title, subtitle, subtext }) => {
             value={values.role}
             onChange={handleChange}
             onBlur={handleBlur}
-            error={!!(touched.role && errors.role)}
-            // value={userRole}
-            // onChange={onRoleChange} // Call the callback function on change
-            // inputProps={{ 'aria-label': 'Without label' }}
-            //   size="small"
+            error={!!(touched.role && errors.role)}              
+            size="medium"
           >
             <MenuItem value="student">Student</MenuItem>
             <MenuItem value="teacher">Teacher</MenuItem>
           </Select>
-        </Stack>
+      </Stack>
+
+      <Box>
         <Button
-          // size="small"
-          color="primary"
-          variant="contained"
-          size="large"
-          fullWidth
-          // component={Link}
-          // to="/auth/login"
-          onClick={handleSubmit}
-          // onClick={onSubmit} // Call the callback function on button click
-        >
-          Sign Up
-        </Button>
+        color="primary"
+        variant="contained"
+        size="large"
+        fullWidth
+        onClick={handleSubmit}
+      >
+        Sign Up
+      </Button>
       </Box>
       {subtitle}
     </>

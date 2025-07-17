@@ -14,7 +14,7 @@ import { setCredentials } from "./../../slices/authSlice";
 import Loader from "./Loader";
 
 const userValidationSchema = yup.object({
-  name: yup.string().min(2).max(25).required("Please enter your name"),
+  name: yup.string().matches(/^[A-Za-z]+$/).min(2).max(25).required('Please enter your name'),
   email: yup
     .string("Enter your email")
     .email("Enter a valid email")
@@ -262,7 +262,7 @@ const Register = () => {
                   <Box
                     sx={{
                       width: "100%",
-                      height: { xs: 180, md: 260 },
+                      height: { xs: 180, md: 250 },
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",

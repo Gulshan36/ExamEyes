@@ -64,6 +64,7 @@ const AuthLogin = ({ formik, title, subtitle, subtext }) => {
             name="password"
             type="password"
             variant="outlined"
+            placeholder="Enter Your Password"
             value={values.password}
             onChange={handleChange}
             onBlur={handleBlur}
@@ -78,8 +79,6 @@ const AuthLogin = ({ formik, title, subtitle, subtext }) => {
             <FormControlLabel control={<Checkbox defaultChecked />} label="Remember this Device" />
           </FormGroup>
           <Typography
-            // component={Link}
-            // to="/"
             fontWeight="500"
             sx={{
               textDecoration: 'none',

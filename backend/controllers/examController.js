@@ -8,7 +8,15 @@ import mongoose from 'mongoose';
 // @route GET /api/exams
 // @access Public
 const getExams = asyncHandler(async (req, res) => {
-  const exams = await Exam.find();
+  const exams = await Exam.find().populate('createdBy', 'name email');
+  res.status(200).json(exams);
+});
+
+// @desc Get exams created by the current user (for teachers)
+// @route GET /api/exams/my-exams
+// @access Private (teacher)
+const getMyExams = asyncHandler(async (req, res) => {
+  const exams = await Exam.find({ createdBy: req.user._id }).populate('createdBy', 'name email');
   res.status(200).json(exams);
 });
 
@@ -55,6 +63,7 @@ const createExam = asyncHandler(async (req, res) => {
     liveDate,
     deadDate,
     codingQuestion,
+    createdBy: req.user._id, // Add the user who created the exam
   });
 
   const createdExam = await exam.save();
@@ -127,22 +136,34 @@ const DeleteExamById = asyncHandler(async (req, res) => {
 const getExamResults = asyncHandler(async (req, res) => {
   console.log("getExamResults controller reached.");
   const { examId: paramExamId } = req.params;
+  
+  console.log('Fetching results for exam ID:', paramExamId);
 
   try {
     let exam = null;
     // First, try to find the exam by MongoDB _id if paramExamId is a valid ObjectId
     if (mongoose.Types.ObjectId.isValid(paramExamId)) {
       exam = await Exam.findById(paramExamId);
+      console.log('Found exam by ObjectId:', exam ? exam._id : 'Not found');
     }
 
     // If not found by _id, or if param was not a valid ObjectId, try to find by UUID examId field
     if (!exam) {
       exam = await Exam.findOne({ examId: paramExamId });
+      console.log('Found exam by UUID:', exam ? exam.examId : 'Not found');
     }
 
     if (!exam) {
+      console.log('No exam found with ID:', paramExamId);
       res.status(404);
       throw new Error("Exam not found for results");
+    }
+
+    // Check if the requesting user is the teacher who created this exam
+    if (req.user.role === 'teacher' && exam.createdBy.toString() !== req.user._id.toString()) {
+      console.log('Teacher not authorized to view results for this exam');
+      res.status(403);
+      throw new Error("Not authorized to view results for this exam");
     }
 
     // Use the found exam's MongoDB _id to query submissions
@@ -153,10 +174,26 @@ const getExamResults = asyncHandler(async (req, res) => {
     console.log(`Found ${submissions.length} submissions for exam ID: ${exam._id}`);
 
     if (!submissions || submissions.length === 0) {
+      console.log('No submissions found for exam:', exam._id);
       return res.status(200).json([]); // Return empty array if no results found
     }
 
-    res.status(200).json(submissions);
+    // Format the response to include exam details
+    const formattedResults = submissions.map(submission => ({
+      _id: submission._id,
+      studentId: submission.studentId,
+      score: submission.score,
+      answers: submission.answers,
+      createdAt: submission.createdAt,
+      examDetails: {
+        examName: exam.examName,
+        totalQuestions: exam.totalQuestions,
+        duration: exam.duration
+      }
+    }));
+
+    console.log('Returning formatted results:', formattedResults.length);
+    res.status(200).json(formattedResults);
   } catch (error) {
     console.error('Error fetching exam results:', error);
     res.status(500);
@@ -318,4 +355,95 @@ const getLastStudentSubmission = asyncHandler(async (req, res) => {
   }
 });
 
-export { getExams, getExamById, createExam, updateExam, DeleteExamById, getExamResults, submitExam, getStudentExamResult, getLastStudentSubmission };
+// @desc Get student's completed exams count and details
+// @route GET /api/exams/student-stats
+// @access Private (student)
+const getStudentStats = asyncHandler(async (req, res) => {
+  console.log('getStudentStats controller reached.');
+  const studentId = req.user._id; // Student ID from protected middleware
+
+  if (!studentId) {
+    res.status(401);
+    throw new Error("Not Authorized, student ID missing");
+  }
+
+  try {
+    // Get all submissions for this student
+    const submissions = await Submission.find({ studentId })
+      .populate('examId', 'examName totalQuestions')
+      .sort({ createdAt: -1 });
+
+    // Calculate statistics
+    const completedExams = submissions.length;
+    const totalScore = submissions.reduce((sum, submission) => sum + submission.score, 0);
+    const avgScore = completedExams > 0 ? (totalScore / completedExams).toFixed(1) : 0;
+
+    // Get recent submissions for activity
+    const recentSubmissions = submissions.slice(0, 5).map(submission => ({
+      examId: submission.examId._id,
+      examName: submission.examId.examName,
+      score: submission.score,
+      totalQuestions: submission.examId.totalQuestions,
+      submittedAt: submission.createdAt
+    }));
+
+    res.status(200).json({
+      completedExams,
+      avgScore: parseFloat(avgScore),
+      totalScore,
+      recentSubmissions
+    });
+  } catch (error) {
+    console.error('Error fetching student stats:', error);
+    res.status(500);
+    throw new Error(`Failed to fetch student stats: ${error.message}`);
+  }
+});
+
+// @desc Get all submissions for teacher's exams
+// @route GET /api/exams/teacher-submissions
+// @access Private (teacher)
+const getTeacherSubmissions = asyncHandler(async (req, res) => {
+  console.log('getTeacherSubmissions controller reached.');
+  const teacherId = req.user._id; // Teacher ID from protected middleware
+
+  if (!teacherId) {
+    res.status(401);
+    throw new Error("Not Authorized, teacher ID missing");
+  }
+
+  try {
+    // Get all exams created by this teacher
+    const teacherExams = await Exam.find({ createdBy: teacherId });
+    const examIds = teacherExams.map(exam => exam._id);
+
+    // Get all submissions for these exams
+    const submissions = await Submission.find({ examId: { $in: examIds } })
+      .populate('studentId', 'name email')
+      .populate('examId', 'examName totalQuestions')
+      .sort({ createdAt: -1 });
+
+    // Format the response
+    const formattedSubmissions = submissions.map(submission => ({
+      submissionId: submission._id,
+      studentName: submission.studentId.name,
+      studentEmail: submission.studentId.email,
+      examName: submission.examId.examName,
+      score: submission.score,
+      totalQuestions: submission.examId.totalQuestions,
+      submittedAt: submission.createdAt,
+      examId: submission.examId._id
+    }));
+
+    res.status(200).json({
+      totalSubmissions: formattedSubmissions.length,
+      submissions: formattedSubmissions
+    });
+  } catch (error) {
+    console.error('Error fetching teacher submissions:', error);
+    res.status(500);
+    throw new Error(`Failed to fetch teacher submissions: ${error.message}`);
+  }
+});
+
+export { getExams, getMyExams, getExamById, createExam, updateExam, DeleteExamById, getExamResults, submitExam, getStudentExamResult, getLastStudentSubmission, getStudentStats, getTeacherSubmissions };

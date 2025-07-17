@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Grid, Box, Card, Stack, Typography } from '@mui/material';
+import { Grid, Box, Card, Stack, Typography, CircularProgress } from '@mui/material';
 
 import PageContainer from '../../components/container/PageContainer';
 import Logo from '../../layouts/full/shared/logo/Logo';
@@ -19,10 +19,7 @@ import Loader from './Loader';
 
 const userValidationSchema = yup.object({
   email: yup.string('Enter your email').email('Enter a valid email').required('Email is required'),
-  password: yup
-    .string('Enter your password')
-    .min(2, 'Password should be of minimum 8 characters length')
-    .required('Password is required'),
+  password: yup.string('Enter your password').min(2, 'Password should be of minimum 8 characters length').required('Password is required'),
 });
 const initialUserValues = {
   email: '',
