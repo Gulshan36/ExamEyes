@@ -1,7 +1,6 @@
 import React from 'react';
 import { Avatar, IconButton, Box, CircularProgress, Tooltip } from '@mui/material';
 import { PhotoCamera as PhotoCameraIcon } from '@mui/icons-material';
-// import { useProfileImage } from '../hooks/useProfileImage';
 import { useSelector } from 'react-redux';
 import { useProfileImage } from '../../hooks/useProfileImage';
 

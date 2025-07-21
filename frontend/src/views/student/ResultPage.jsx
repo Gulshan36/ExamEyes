@@ -14,6 +14,17 @@ const ResultPage = () => {
   const isTeacher = userInfo?.role === 'teacher';
   const currentUserId = userInfo?._id;
 
+  // If no examId is provided, redirect to appropriate page
+  useEffect(() => {
+    if (!examId) {
+      if (isTeacher) {
+        navigate('/my-exams');
+      } else {
+        navigate('/exam');
+      }
+    }
+  }, [examId, isTeacher, navigate]);
+
   // Determine the student ID to use for fetching results
   // If studentIdFromUrl is present, it means a teacher is viewing a specific student's result.
   // Otherwise, it's a student viewing their own result, so use currentUserId.
@@ -21,13 +32,18 @@ const ResultPage = () => {
 
   // Fetch all exam results for teacher, or skip for student
   const { data: allExamResults, isLoading: isAllResultsLoading, isError: isAllResultsError, error: allResultsError } = useGetExamResultsQuery(examId, {
-    skip: !isTeacher, // Only fetch if user is a teacher
+    skip: !isTeacher || !examId, // Only fetch if user is a teacher and examId exists
   });
 
   // Fetch specific student's exam result for student or teacher viewing, or skip if no studentIdToQuery
   const { data: studentResult, isLoading: isStudentResultLoading, isError: isStudentResultError, error: studentResultError } = useGetStudentExamResultQuery({ examId, studentId: studentIdToQuery }, {
-    skip: !studentIdToQuery, // Skip if no student ID is determined
+    skip: !studentIdToQuery || !examId, // Skip if no student ID is determined or no examId
   });
+
+  // Don't render anything if no examId (redirect will handle this)
+  if (!examId) {
+    return null;
+  }
 
   if (isTeacher && isAllResultsLoading) {
     return (

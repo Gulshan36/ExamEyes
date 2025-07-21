@@ -37,7 +37,8 @@ const Menuitems = [
     id: uniqueId(),
     title: 'Result',
     icon: IconCopy,
-    href: '/result',
+    href: '/teacher-dashboard',
+    // href: '/result',
   },
   {
     navlabel: true,
@@ -45,9 +46,21 @@ const Menuitems = [
   },
   {
     id: uniqueId(),
+    title: 'Dashboard',
+    icon: IconLayoutDashboard,
+    href: '/teacher-dashboard',
+  },
+  {
+    id: uniqueId(),
     title: 'Create Exam',
     icon: IconMoodHappy,
     href: '/create-exam',
+  },
+  {
+    id: uniqueId(),
+    title: 'My Exams',
+    icon: IconTypography,
+    href: '/my-exams',
   },
   {
     id: uniqueId(),

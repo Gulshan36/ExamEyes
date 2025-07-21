@@ -6,6 +6,8 @@ import NavItem from './NavItem';
 import NavGroup from './NavGroup/NavGroup';
 import { useSelector } from 'react-redux';
 import { useGetLastStudentSubmissionQuery } from 'src/slices/examApiSlice';
+import MyExams from '../../../views/teacher/MyExams';
+import { Dashboard } from '@mui/icons-material';
 
 const SidebarItems = () => {
   const { userInfo } = useSelector((state) => state.auth);
@@ -63,7 +65,7 @@ const SidebarItems = () => {
           // Hide certain items for students
           if (
             userInfo.role === 'student' &&
-            ['Create Exam', 'Add Questions', 'Exam Logs'].includes(item.title)
+            ['Create Exam', 'Add Questions', 'Exam Logs','My Exams'].includes(item.title)
           ) {
             return null;
           }

@@ -26,6 +26,7 @@ const ExamPage = Loadable(lazy(() => import('./../views/student/ExamPage')));
 const ExamDetails = Loadable(lazy(() => import('./../views/student/ExamDetails')));
 const CodeDetails = Loadable(lazy(() => import('../views/student/CodeDetails')));
 const ResultPage = Loadable(lazy(() => import('./../views/student/ResultPage')));
+const StudentResults = Loadable(lazy(() => import('./../views/student/StudentResults')));
 const Coder = Loadable(lazy(() => import('../views/student/Coder')));
 //Auth Routes
 const Error = Loadable(lazy(() => import('../views/authentication/Error')));
@@ -37,6 +38,8 @@ const UserAccount = Loadable(lazy(() => import('../views/authentication/UserAcco
 const CreateExamPage = Loadable(lazy(() => import('./../views/teacher/CreateExamPage')));
 const ExamLogPage = Loadable(lazy(() => import('./../views/teacher/ExamLogPage')));
 const AddQuestions = Loadable(lazy(() => import('./../views/teacher/AddQuestions')));
+const MyExams = Loadable(lazy(() => import('./../views/teacher/MyExams')));
+const TeacherDashboard = Loadable(lazy(() => import('./../views/teacher/TeacherDashboard')));
 const PrivateRoute = Loadable(lazy(() => import('../views/authentication/PrivateRoute')));
 const TeacherRoute = Loadable(lazy(() => import('../views/authentication/TeacherRoute')));
 
@@ -54,13 +57,15 @@ const Router = createBrowserRouter(
           <Route path="/sample-page" exact={true} element={<SamplePage />} />
           <Route path="/Success" exact={true} element={<Success />} />
           <Route path="/exam" exact={true} element={<ExamPage />} />
-          <Route path="/result" element={<ResultPage />} /> // add this line
+          <Route path="/result" element={<StudentResults />} />
           <Route path="/result/:examId" exact={true} element={<ResultPage />} />
           <Route path="" element={<TeacherRoute />}>
             <Route path="/create-exam" exact={true} element={<CreateExamPage />} />
             <Route path="/teacher/exam/edit/:examId" exact={true} element={<CreateExamPage />} />
             <Route path="/add-questions" exact={true} element={<AddQuestions />} />
             <Route path="/exam-log" exact={true} element={<ExamLogPage />} />
+            <Route path="/my-exams" exact={true} element={<MyExams />} />
+            <Route path="/teacher-dashboard" exact={true} element={<TeacherDashboard />} />
             <Route path="/teacher/result/:examId/:studentId" exact={true} element={<ResultPage />} />
             
           </Route>

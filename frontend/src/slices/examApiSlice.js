@@ -13,6 +13,13 @@ export const examApiSlice = apiSlice.injectEndpoints({
         method: 'GET',
       }),
     }),
+    // Get exams created by current user (for teachers)
+    getMyExams: builder.query({
+      query: () => ({
+        url: `${EXAMS_URL}/my-exams`,
+        method: 'GET',
+      }),
+    }),
     // Get a single exam by ID
     getExamById: builder.query({
       query: (examId) => ({
@@ -74,6 +81,7 @@ export const examApiSlice = apiSlice.injectEndpoints({
         url: `${EXAMS_URL}/results/${examId}`,
         method: 'GET',
       }),
+      providesTags: ['ExamResults'],
     }),
     // Get a single student's exam result for a specific exam
     getStudentExamResult: builder.query({
@@ -89,6 +97,22 @@ export const examApiSlice = apiSlice.injectEndpoints({
         method: 'GET',
       }),
     }),
+    // Get student statistics (completed exams, avg score, etc.)
+    getStudentStats: builder.query({
+      query: () => ({
+        url: `${EXAMS_URL}/student-stats`,
+        method: 'GET',
+      }),
+      providesTags: ['StudentStats'],
+    }),
+    // Get teacher submissions for all their exams
+    getTeacherSubmissions: builder.query({
+      query: () => ({
+        url: `${EXAMS_URL}/teacher-submissions`,
+        method: 'GET',
+      }),
+      providesTags: ['TeacherSubmissions'],
+    }),
     // Submit an exam
     submitExam: builder.mutation({
       query: (data) => ({
@@ -96,6 +120,8 @@ export const examApiSlice = apiSlice.injectEndpoints({
         method: 'POST',
         body: data,
       }),
+      // Invalidate relevant caches when exam is submitted
+      invalidatesTags: ['StudentStats', 'TeacherSubmissions', 'ExamResults'],
     }),
   }),
 });
@@ -103,6 +129,7 @@ export const examApiSlice = apiSlice.injectEndpoints({
 // Export the generated hooks for each endpoint
 export const {
   useGetExamsQuery,
+  useGetMyExamsQuery,
   useGetExamByIdQuery,
   useCreateExamMutation,
   useUpdateExamMutation,
@@ -114,4 +141,6 @@ export const {
   useUpdateQuestionMutation,
   useGetStudentExamResultQuery,
   useGetLastStudentSubmissionQuery,
+  useGetStudentStatsQuery,
+  useGetTeacherSubmissionsQuery,
 } = examApiSlice;

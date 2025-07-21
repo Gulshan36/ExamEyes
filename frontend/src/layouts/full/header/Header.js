@@ -38,7 +38,14 @@ const Header = (props) => {
   }));
 
   return (
-    <AppBarStyled position="sticky" color="default">
+    <AppBarStyled
+      position="sticky"
+      color="default"
+      sx={{
+        background: '#41bcba',
+        
+      }}
+    >
       <ToolbarStyled>
         <IconButton
           color="inherit"
@@ -49,6 +56,7 @@ const Header = (props) => {
               lg: 'none',
               xs: 'inline',
             },
+            color: "#fff",
           }}
         >
           <IconMenu width="20" height="20" />
@@ -61,6 +69,7 @@ const Header = (props) => {
           aria-controls="msgs-menu"
           aria-haspopup="true"
           sx={{
+            color: "#fff",
             ...(typeof anchorEl2 === 'object' && {
               color: 'primary.main',
             }),
@@ -72,7 +81,19 @@ const Header = (props) => {
         </IconButton>
         <Box flexGrow={1} />
         <Stack spacing={1} direction="row" alignItems="center">
-          <Typography variant="contained" color="primary">
+          <Typography
+            variant="h6"
+            sx={{
+              color: "#fff",
+              fontWeight: 600,
+              letterSpacing: 1,
+              textShadow: "1px 1px 8px #159fc1",
+              px: 2,
+              py: 0.5,
+              borderRadius: 2,
+              background: "rgba(25, 32, 154, 0.1)",
+            }}
+          >
             Hello, {_.startCase(userInfo.name)}
           </Typography>
           <Profile />
