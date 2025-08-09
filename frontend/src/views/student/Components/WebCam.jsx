@@ -4,7 +4,7 @@ import { Box, Card, Typography } from '@mui/material';
 import swal from 'sweetalert';
 import { UploadClient } from '@uploadcare/upload-client';
 
-const client = new UploadClient({ publicKey: '2cc655ec66e06faab04e' });
+const client = new UploadClient({ publicKey: 'd3f7ad5ab31ed1eec15d' });
 
 export default function Home({ cheatingLog, updateCheatingLog }) {
   const webcamRef = useRef(null);
