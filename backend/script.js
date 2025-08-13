@@ -1,4 +1,4 @@
-// dmekfn
+// Don't Move
 
-// Write your code here...dlf
-lfkn
+// Write your code here..
+console.log("hello world")
