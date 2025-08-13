@@ -186,6 +186,13 @@ const TestPage = () => {
     setScore(score + 1);
   };
 
+  // Handle question navigation from sidebar
+  const handleQuestionNavigation = (questionIndex) => {
+    if (questionIndex >= 0 && questionIndex < questions.length) {
+      setCurrentQuestionIndex(questionIndex);
+    }
+  };
+
   if (isExamsLoading) {
     return (
       <Box
@@ -594,6 +601,7 @@ const TestPage = () => {
                     onAnswerSelected={handleAnswerSelected}
                     onQuestionChange={setCurrentQuestionIndex}
                     onAnswersUpdate={setAnsweredQuestions}
+                    questionIndex={currentQuestionIndex}
                   />
                 )}
               </Box>
@@ -817,9 +825,7 @@ const TestPage = () => {
                           }}
                           onClick={() => {
                             // Handle question navigation
-                            console.log(
-                              `Navigate to question ${questionNumber}`
-                            );
+                            handleQuestionNavigation(index);
                           }}
                         >
                           {questionNumber}
