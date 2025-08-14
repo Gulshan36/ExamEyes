@@ -31,6 +31,16 @@ const examSchema = mongoose.Schema(
         type: String,
       },
     },
+    codingQuestions: [{
+      question: {
+        type: String,
+        required: true,
+      },
+      description: {
+        type: String,
+        required: true,
+      },
+    }],
     // Define examId field with UUID generation
     examId: {
       type: String,

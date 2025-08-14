@@ -25,10 +25,12 @@ const examValidationSchema = yup.object({
     .required('Exam Duration is required'),
   liveDate: yup.date().required('Live Date and Time is required'),
   deadDate: yup.date().required('Dead Date and Time is required'),
-  codingQuestion: yup.object().shape({
-    question: yup.string().required('Coding Question is required'),
-    description: yup.string().required('Question Description is required'),
-  }),
+  codingQuestions: yup.array().of(
+    yup.object().shape({
+      question: yup.string().required('Coding Question is required'),
+      description: yup.string().required('Question Description is required'),
+    })
+  ).min(1, 'At least one coding question is required'),
 });
 
 const CreateExamPage = () => {
@@ -44,10 +46,12 @@ const CreateExamPage = () => {
     duration: '',
     liveDate: '',
     deadDate: '',
-    codingQuestion: {
-      question: '',
-      description: '',
-    },
+    codingQuestions: [
+      {
+        question: '',
+        description: '',
+      }
+    ],
   };
 
   const formik = useFormik({
@@ -65,7 +69,23 @@ const CreateExamPage = () => {
         }
 
         console.log('Exam Response:', examResponse);
-        formik.resetForm();
+        
+        // Reset form with initial values that include one question
+        formik.resetForm({
+          values: {
+            examName: '',
+            totalQuestions: '',
+            duration: '',
+            liveDate: '',
+            deadDate: '',
+            codingQuestions: [
+              {
+                question: '',
+                description: '',
+              }
+            ],
+          }
+        });
 
       } catch (err) {
         console.error('Exam Operation Error:', err);
@@ -73,6 +93,13 @@ const CreateExamPage = () => {
       }
     },
   });
+
+  // Ensure codingQuestions always has at least one question
+  useEffect(() => {
+    if (!formik.values.codingQuestions || formik.values.codingQuestions.length === 0) {
+      formik.setFieldValue('codingQuestions', [{ question: '', description: '' }]);
+    }
+  }, []);
 
   useEffect(() => {
     if (examId && examData) {
@@ -83,10 +110,11 @@ const CreateExamPage = () => {
         duration: examData.duration,
         liveDate: examData.liveDate ? new Date(examData.liveDate).toISOString().slice(0, 16) : '',
         deadDate: examData.deadDate ? new Date(examData.deadDate).toISOString().slice(0, 16) : '',
-        codingQuestion: {
-          question: examData.codingQuestion?.question || '',
-          description: examData.codingQuestion?.description || '',
-        },
+        codingQuestions: examData.codingQuestions && examData.codingQuestions.length > 0 
+          ? examData.codingQuestions 
+          : examData.codingQuestion 
+            ? [{ question: examData.codingQuestion.question || '', description: examData.codingQuestion.description || '' }]
+            : [{ question: '', description: '' }],
       });
     }
   }, [examId, examData]);

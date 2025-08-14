@@ -161,15 +161,25 @@ const getExamCodingQuestion = asyncHandler(async (req, res) => {
       throw new Error(`No exam found with ID: ${examId}`);
     }
 
-    // Check if the exam has a coding question embedded
-    if (!exam.codingQuestion || !exam.codingQuestion.question) {
+    // Check if the exam has coding questions
+    let codingQuestions = [];
+    
+    // Handle both old format (single codingQuestion) and new format (codingQuestions array)
+    if (exam.codingQuestions && exam.codingQuestions.length > 0) {
+      codingQuestions = exam.codingQuestions;
+    } else if (exam.codingQuestion && exam.codingQuestion.question) {
+      // Backward compatibility - convert single question to array
+      codingQuestions = [exam.codingQuestion];
+    }
+
+    if (codingQuestions.length === 0) {
       res.status(404);
       throw new Error(`No coding question found for exam: ${examId}`);
     }
 
     res.status(200).json({
       success: true,
-      data: exam.codingQuestion, // Return the embedded coding question
+      data: codingQuestions, // Return all coding questions as an array
     });
   } catch (error) {
     console.error("Error fetching coding question:", error);

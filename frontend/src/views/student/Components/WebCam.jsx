@@ -78,22 +78,22 @@ export default function Home({ cheatingLog, updateCheatingLog }) {
       updateCheatingLog(updatedLog);
     }
 
-    switch (type) {
-      case 'noFace':
-        swal('Face Not Visible', 'Warning Recorded', 'warning');
-        break;
-      case 'multipleFace':
-        swal('Multiple Faces Detected', 'Warning Recorded', 'warning');
-        break;
-      case 'cellPhone':
-        swal('Cell Phone Detected', 'Warning Recorded', 'warning');
-        break;
-      case 'prohibitedObject':
-        swal('Prohibited Object Detected', 'Warning Recorded', 'warning');
-        break;
-      default:
-        break;
-    }
+    // switch (type) {
+    //   case 'noFace':
+    //     swal('Face Not Visible', 'Warning Recorded', 'warning');
+    //     break;
+    //   case 'multipleFace':
+    //     swal('Multiple Faces Detected', 'Warning Recorded', 'warning');
+    //     break;
+    //   case 'cellPhone':
+    //     swal('Cell Phone Detected', 'Warning Recorded', 'warning');
+    //     break;
+    //   case 'prohibitedObject':
+    //     swal('Prohibited Object Detected', 'Warning Recorded', 'warning');
+    //     break;
+    //   default:
+    //     break;
+    // }
   };
 
   useEffect(() => {

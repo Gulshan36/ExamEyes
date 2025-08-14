@@ -1,4 +1,3 @@
-// Don't Move
+// sdkb
 
-// Write your code here..
-console.log("hello world")
+// Write your code here...

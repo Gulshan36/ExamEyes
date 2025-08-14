@@ -38,11 +38,17 @@ const getExamById = asyncHandler(async (req, res) => {
   }
 
   if (exam) {
-    // Ensure codingQuestion exists, even if empty, for frontend compatibility
-    if (!exam.codingQuestion) {
-      exam.codingQuestion = {}; // Initialize as an empty object
+    // Ensure backward compatibility - convert old codingQuestion to new codingQuestions array
+    if (!exam.codingQuestions && exam.codingQuestion) {
+      exam.codingQuestions = [exam.codingQuestion];
     }
-    console.log("getExamById - exam.codingQuestion sent to frontend:", exam.codingQuestion);
+    
+    // Ensure codingQuestions exists, even if empty, for frontend compatibility
+    if (!exam.codingQuestions) {
+      exam.codingQuestions = [{ question: '', description: '' }]; // Initialize with one empty question
+    }
+    
+    console.log("getExamById - exam.codingQuestions sent to frontend:", exam.codingQuestions);
     res.status(200).json(exam);
   } else {
     res.status(404);
@@ -54,7 +60,13 @@ const getExamById = asyncHandler(async (req, res) => {
 // @route POST /api/exams
 // @access Private (admin)
 const createExam = asyncHandler(async (req, res) => {
-  const { examName, totalQuestions, duration, liveDate, deadDate, codingQuestion } = req.body;
+  const { examName, totalQuestions, duration, liveDate, deadDate, codingQuestions, codingQuestion } = req.body;
+
+  // Handle backward compatibility - convert single codingQuestion to array
+  let finalCodingQuestions = codingQuestions;
+  if (!codingQuestions && codingQuestion) {
+    finalCodingQuestions = [codingQuestion];
+  }
 
   const exam = new Exam({
     examName,
@@ -62,7 +74,7 @@ const createExam = asyncHandler(async (req, res) => {
     duration,
     liveDate,
     deadDate,
-    codingQuestion,
+    codingQuestions: finalCodingQuestions,
     createdBy: req.user._id, // Add the user who created the exam
   });
 
@@ -80,7 +92,7 @@ const createExam = asyncHandler(async (req, res) => {
 // @route PUT /api/exams/exam/:examId
 // @access Private (teacher/admin)
 const updateExam = asyncHandler(async (req, res) => {
-  const { examName, totalQuestions, duration, liveDate, deadDate, codingQuestion } = req.body;
+  const { examName, totalQuestions, duration, liveDate, deadDate, codingQuestions, codingQuestion } = req.body;
   const paramExamId = req.params.examId;
   let exam = null;
 
@@ -106,8 +118,13 @@ const updateExam = asyncHandler(async (req, res) => {
     exam.duration = duration || exam.duration;
     exam.liveDate = liveDate || exam.liveDate;
     exam.deadDate = deadDate || exam.deadDate;
-    // Ensure codingQuestion is updated correctly
-    exam.codingQuestion = codingQuestion;
+    
+    // Handle backward compatibility - prefer codingQuestions array over single codingQuestion
+    if (codingQuestions) {
+      exam.codingQuestions = codingQuestions;
+    } else if (codingQuestion) {
+      exam.codingQuestions = [codingQuestion];
+    }
 
     const updatedExam = await exam.save();
     console.log('Exam updated successfully:', updatedExam._id);
