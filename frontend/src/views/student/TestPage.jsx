@@ -101,9 +101,9 @@ const TestPage = () => {
   useEffect(() => {
     setSessionStats((prev) => ({
       ...prev,
-      questionsAnswered: submittedAnswers.length,
+      questionsAnswered: Object.keys(answeredQuestions).length,
     }));
-  }, [submittedAnswers]);
+  }, [answeredQuestions]);
 
   const [questions, setQuestions] = useState([]);
   const { data, isLoading } = useGetQuestionsQuery(examId);
@@ -118,11 +118,6 @@ const TestPage = () => {
 
   const handleAnswerSelected = (answer) => {
     setSubmittedAnswers((prev) => [...prev, answer]);
-    // Update session stats
-    setSessionStats((prev) => ({
-      ...prev,
-      questionsAnswered: prev.questionsAnswered + 1,
-    }));
   };
 
   const handleMcqCompletion = async () => {
@@ -231,8 +226,8 @@ const TestPage = () => {
     >
       {/* Enhanced Header Section */}
       <Slide direction="down" in={showContent} timeout={800}>
-        <Box sx={{ mb: 4, px: 3 }}>
-          <Grid container spacing={3} alignItems="center">
+        <Box sx={{ mb: 2, px: 3 }}>
+          <Grid container spacing={8} alignItems="center">
             {/* Main Header */}
             <Grid item xs={12} lg={isMobile ? 12 : 6}>
               <Card
@@ -244,9 +239,9 @@ const TestPage = () => {
                   boxShadow: 6,
                   position: "relative",
                   overflow: "hidden",
+                  height: "205px",
                 }}
               >
-
                 <CardContent
                   sx={{
                     textAlign: "center",
@@ -400,7 +395,7 @@ const TestPage = () => {
                     >
                       <Typography variant="body2">Answered:</Typography>
                       <Chip
-                        label={`${sessionStats.questionsAnswered}/${questions.length}`}
+                        label={`${sessionStats.questionsAnswered}/${data?.length || 0}`}
                         size="small"
                         sx={{
                           backgroundColor: "rgba(255,255,255,0.9)",
@@ -416,7 +411,7 @@ const TestPage = () => {
                       <LinearProgress
                         variant="determinate"
                         value={
-                          (sessionStats.questionsAnswered / questions.length) *
+                          (sessionStats.questionsAnswered / (data?.length || 1)) *
                             100 || 0
                         }
                         sx={{
@@ -464,8 +459,6 @@ const TestPage = () => {
               </Card>
             </Grid>
 
-
-
             {/* Timer */}
             <Grid item xs={12} md={2} lg={2}>
               <Card
@@ -503,537 +496,570 @@ const TestPage = () => {
                 </CardContent>
               </Card>
             </Grid>
-
-
           </Grid>
         </Box>
       </Slide>
 
       {/* Main Content */}
-
-      <Grid container spacing={5}>
-        {/* Center - Questions Section */}
-        <Grid item xs={12} md={7} lg={7}>
-          <Card
-            sx={{
-              borderRadius: 4,
-              boxShadow: 6,
-              background: "linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)",
-              height: "850px", // Fixed height
-              width: "1030px",
-            }}
-          >
-            <CardContent
+      <Box sx={{ mb: 1, px: 3 }}>
+        <Grid container spacing={3}>
+          {/* Center - Questions Section */}
+          <Grid item xs={12} md={7} lg={7}>
+            <Card
               sx={{
-                p: 4,
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
+                borderRadius: 4,
+                boxShadow: 6,
+                background: "linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)",
+                height: "850px", // Fixed height
+                width: "1030px",
               }}
             >
-              <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-                <Avatar
-                  sx={{
-                    bgcolor: "primary.main",
-                    mr: 2,
-                    width: 50,
-                    height: 50,
-                  }}
-                >
-                  <AssignmentIcon sx={{ fontSize: 28 }} />
-                </Avatar>
-                <Box>
-                  <Typography
-                    variant="h5"
-                    sx={{ fontWeight: "bold", color: "primary.main" }}
-                  >
-                    Question Paper
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                    Answer all questions carefully
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Divider sx={{ mb: 3 }} />
-
-              <Box
+              <CardContent
                 sx={{
-                  flex: 1, // Take remaining space
+                  p: 4,
+                  height: "100%",
                   display: "flex",
                   flexDirection: "column",
-                  p: 3,
-                  borderRadius: 3,
-                  background:
-                    "linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)",
-                  border: "2px solid",
-                  borderColor: "divider",
-                  overflow: "hidden", // Prevent content overflow
                 }}
               >
-                {isLoading ? (
-                  <Box
+                <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+                  <Avatar
                     sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      height: "100%",
+                      bgcolor: "primary.main",
+                      mr: 2,
+                      width: 50,
+                      height: 50,
                     }}
                   >
-                    <CircularProgress size={50} />
+                    <AssignmentIcon sx={{ fontSize: 28 }} />
+                  </Avatar>
+                  <Box>
                     <Typography
-                      variant="h6"
-                      sx={{ mt: 2, color: "primary.main" }}
+                      variant="h5"
+                      sx={{ fontWeight: "bold", color: "primary.main" }}
                     >
-                      Loading Questions...
+                      Question Paper
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: "text.secondary" }}
+                    >
+                      Answer all questions carefully
                     </Typography>
                   </Box>
-                ) : (
-                  <MultipleChoiceQuestion
-                    submitTest={
-                      isMcqCompleted
-                        ? handleTestSubmission
-                        : handleMcqCompletion
-                    }
-                    questions={data}
-                    saveUserTestScore={saveUserTestScore}
-                    onAnswerSelected={handleAnswerSelected}
-                    onQuestionChange={setCurrentQuestionIndex}
-                    onAnswersUpdate={setAnsweredQuestions}
-                    questionIndex={currentQuestionIndex}
-                  />
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Right Sidebar - Question Navigator */}
-        <Grid item xs={12} md={4} lg={4}>
-          <Card
-            sx={{
-              borderRadius: 4,
-              boxShadow: 4,
-              background: "linear-gradient(135deg, #43cea2 0%, #185a9d 100%)",
-              color: "white",
-              height: "fit-content",
-              position: "sticky",
-              top: 20,
-            }}
-          >
-            <CardContent sx={{ p: 2 }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  mb: 2,
-                }}
-              >
-                <Avatar
-                  sx={{
-                    bgcolor: "rgba(255,255,255,0.2)",
-                    width: 40,
-                    height: 40,
-                    mb: 1,
-                  }}
-                >
-                  <AssignmentIcon sx={{ fontSize: 20 }} />
-                </Avatar>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ fontWeight: "bold", textAlign: "center" }}
-                >
-                  Questions
-                </Typography>
-              </Box>
-
-              {/* Question Navigator */}
-              <Box
-                sx={{
-                  backgroundColor: "rgba(255,255,255,0.1)",
-                  borderRadius: 2,
-                  p: 2,
-                  border: "1px solid rgba(255,255,255,0.2)",
-                  minHeight: "400px",
-                  maxHeight: "500px",
-                  overflow: "auto",
-                }}
-              >
-                {/* Legend */}
-                <Stack spacing={1} sx={{ mb: 2 }}>
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <Box
-                      sx={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: 2,
-                        backgroundColor: "#81c784",
-                        mr: 1,
-                      }}
-                    />
-                    <Typography
-                      variant="caption"
-                      sx={{ fontSize: "0.65rem", color: "white" }}
-                    >
-                      Correct
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <Box
-                      sx={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: 2,
-                        backgroundColor: "#ff9800",
-                        mr: 1,
-                      }}
-                    />
-                    <Typography
-                      variant="caption"
-                      sx={{ fontSize: "0.65rem", color: "white" }}
-                    >
-                      Incorrect
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <Box
-                      sx={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: 2,
-                        backgroundColor: "#e57373",
-                        mr: 1,
-                      }}
-                    />
-                    <Typography
-                      variant="caption"
-                      sx={{ fontSize: "0.65rem", color: "white" }}
-                    >
-                      Not answered
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <Box
-                      sx={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: 2,
-                        backgroundColor: "#9e9e9e",
-                        mr: 1,
-                      }}
-                    />
-                    <Typography
-                      variant="caption"
-                      sx={{ fontSize: "0.65rem", color: "white" }}
-                    >
-                      Not visited
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <Box
-                      sx={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: 2,
-                        backgroundColor: "#5a9fd4",
-                        mr: 1,
-                      }}
-                    />
-                    <Typography
-                      variant="caption"
-                      sx={{ fontSize: "0.65rem", color: "white" }}
-                    >
-                      Current
-                    </Typography>
-                  </Box>
-                </Stack>
-
-                <Divider
-                  sx={{ mb: 2, backgroundColor: "rgba(255,255,255,0.3)" }}
-                />
-
-                {/* Question Grid Layout */}
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "repeat(3, 1fr)", // 3 columns on mobile
-                      sm: "repeat(4, 1fr)", // 4 columns on tablet
-                      md: "repeat(5, 1fr)", // 5 columns on desktop
-                    },
-                    gap: 2,
-                    width: "100%",
-                    justifyItems: "center",
-                  }}
-                >
-                  {Array.from({ length: questions.length }, (_, index) => {
-                    const questionNumber = index + 1;
-                    const isAnswered = answeredQuestions.hasOwnProperty(index);
-                    const isCurrent = index === currentQuestionIndex;
-
-                    // Determine status and colors to match the image
-                    let backgroundColor, status;
-
-                    if (isCurrent) {
-                      backgroundColor = "#5a9fd4"; // Blue for current (matching image)
-                      status = "Current";
-                    } else if (isAnswered) {
-                      // For now, treat all answered as correct (green)
-                      // You can modify this logic based on actual answer correctness
-                      backgroundColor = "#81c784"; // Green for correct (matching image)
-                      status = "Answered";
-                    } else if (index < currentQuestionIndex) {
-                      // Visited but not answered
-                      backgroundColor = "#e57373"; // Red for not answered (matching image)
-                      status = "Not answered";
-                    } else {
-                      // Not visited yet
-                      backgroundColor = "#9e9e9e"; // Gray for not visited (matching image)
-                      status = "Not visited";
-                    }
-
-                    return (
-                      <Tooltip
-                        key={questionNumber}
-                        title={`Question ${questionNumber} (${status})`}
-                        placement="top"
-                      >
-                        <Paper
-                          sx={{
-                            width: 40,
-                            height: 40,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            cursor: "pointer",
-                            backgroundColor: backgroundColor,
-                            color: "white",
-                            borderRadius: 2,
-                            fontSize: "0.8rem",
-                            fontWeight: "bold",
-                            transition: "all 0.3s ease",
-                            position: "relative",
-                            border: "none",
-                            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                            "&:hover": {
-                              transform: "scale(1.05)",
-                              boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
-                              opacity: 0.9,
-                            },
-                          }}
-                          onClick={() => {
-                            // Handle question navigation
-                            handleQuestionNavigation(index);
-                          }}
-                        >
-                          {questionNumber}
-                          {isCurrent && (
-                            <Box
-                              sx={{
-                                position: "absolute",
-                                top: -3,
-                                right: -3,
-                                width: 8,
-                                height: 8,
-                                borderRadius: "50%",
-                                backgroundColor: "white",
-                                animation: "pulse 1.5s infinite",
-                                boxShadow: "0 0 0 2px #5a9fd4",
-                              }}
-                            />
-                          )}
-                        </Paper>
-                      </Tooltip>
-                    );
-                  })}
                 </Box>
 
-                {/* Statistics */}
+                <Divider sx={{ mb: 3 }} />
+
                 <Box
                   sx={{
-                    mt: 3,
-                    pt: 2,
-                    borderTop: "1px solid rgba(255,255,255,0.3)",
+                    flex: 1, // Take remaining space
+                    display: "flex",
+                    flexDirection: "column",
+                    p: 3,
+                    borderRadius: 3,
+                    background:
+                      "linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)",
+                    border: "2px solid",
+                    borderColor: "divider",
+                    overflow: "hidden", // Prevent content overflow
                   }}
                 >
-                  <Stack spacing={1}>
+                  {isLoading ? (
                     <Box
-                      sx={{ display: "flex", justifyContent: "space-between" }}
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        height: "100%",
+                      }}
                     >
-                      <Typography variant="caption" sx={{ fontSize: "0.8rem" }}>
-                        Total:
-                      </Typography>
+                      <CircularProgress size={50} />
                       <Typography
-                        variant="caption"
-                        sx={{ fontSize: "0.8rem", fontWeight: "bold" }}
+                        variant="h6"
+                        sx={{ mt: 2, color: "primary.main" }}
                       >
-                        {questions.length}
+                        Loading Questions...
                       </Typography>
                     </Box>
-                    <Box
-                      sx={{ display: "flex", justifyContent: "space-between" }}
-                    >
-                      <Typography variant="caption" sx={{ fontSize: "0.8rem" }}>
-                        Answered:
-                      </Typography>
+                  ) : (
+                    <MultipleChoiceQuestion
+                      submitTest={
+                        isMcqCompleted
+                          ? handleTestSubmission
+                          : handleMcqCompletion
+                      }
+                      questions={data}
+                      saveUserTestScore={saveUserTestScore}
+                      onAnswerSelected={handleAnswerSelected}
+                      onQuestionChange={setCurrentQuestionIndex}
+                      onAnswersUpdate={setAnsweredQuestions}
+                      questionIndex={currentQuestionIndex}
+                    />
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Right Sidebar - Question Navigator */}
+          <Grid item xs={12} md={4} lg={4}>
+            <Card
+              sx={{
+                borderRadius: 4,
+                boxShadow: 4,
+                background: "linear-gradient(135deg, #43cea2 0%, #185a9d 100%)",
+                color: "white",
+                height: "fit-content",
+                position: "sticky",
+                top: 20,
+              }}
+            >
+              <CardContent sx={{ p: 2 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    mb: 2,
+                  }}
+                >
+                  <Avatar
+                    sx={{
+                      bgcolor: "rgba(255,255,255,0.2)",
+                      width: 40,
+                      height: 40,
+                      mb: 1,
+                    }}
+                  >
+                    <AssignmentIcon sx={{ fontSize: 20 }} />
+                  </Avatar>
+                  <Typography
+                    variant="subtitle1"
+                    sx={{ fontWeight: "bold", textAlign: "center" }}
+                  >
+                    Questions
+                  </Typography>
+                </Box>
+
+                {/* Question Navigator */}
+                <Box
+                  sx={{
+                    backgroundColor: "rgba(255,255,255,0.1)",
+                    borderRadius: 2,
+                    p: 2,
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    minHeight: "400px",
+                    maxHeight: "500px",
+                    overflow: "auto",
+                  }}
+                >
+                  {/* Legend */}
+                  <Stack spacing={1} sx={{ mb: 2 }}>
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Box
+                        sx={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: 2,
+                          backgroundColor: "#81c784",
+                          mr: 1,
+                        }}
+                      />
                       <Typography
                         variant="caption"
-                        sx={{
-                          fontSize: "0.8rem",
-                          fontWeight: "bold",
-                          color: "#0fec17ff",
-                        }}
+                        sx={{ fontSize: "0.65rem", color: "white" }}
                       >
-                        {Object.keys(answeredQuestions).length}
+                        Correct
                       </Typography>
                     </Box>
-                    <Box
-                      sx={{ display: "flex", justifyContent: "space-between" }}
-                    >
-                      <Typography variant="caption" sx={{ fontSize: "0.8rem" }}>
-                        Remaining:
-                      </Typography>
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Box
+                        sx={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: 2,
+                          backgroundColor: "#ff9800",
+                          mr: 1,
+                        }}
+                      />
                       <Typography
                         variant="caption"
-                        sx={{
-                          fontSize: "0.8rem",
-                          fontWeight: "bold",
-                          color: "#953029ff",
-                        }}
+                        sx={{ fontSize: "0.65rem", color: "white" }}
                       >
-                        {questions.length -
-                          Object.keys(answeredQuestions).length}
+                        Incorrect
                       </Typography>
                     </Box>
-                    <Box
-                      sx={{ display: "flex", justifyContent: "space-between" }}
-                    >
-                      <Typography variant="caption" sx={{ fontSize: "0.8rem" }}>
-                        Current:
-                      </Typography>
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Box
+                        sx={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: 2,
+                          backgroundColor: "#e57373",
+                          mr: 1,
+                        }}
+                      />
                       <Typography
                         variant="caption"
-                        sx={{
-                          fontSize: "0.8rem",
-                          fontWeight: "bold",
-                          color: "#4a1ceeff",
-                        }}
+                        sx={{ fontSize: "0.65rem", color: "white" }}
                       >
-                        Q{currentQuestionIndex + 1}
+                        Not answered
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Box
+                        sx={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: 2,
+                          backgroundColor: "#9e9e9e",
+                          mr: 1,
+                        }}
+                      />
+                      <Typography
+                        variant="caption"
+                        sx={{ fontSize: "0.65rem", color: "white" }}
+                      >
+                        Not visited
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Box
+                        sx={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: 2,
+                          backgroundColor: "#5a9fd4",
+                          mr: 1,
+                        }}
+                      />
+                      <Typography
+                        variant="caption"
+                        sx={{ fontSize: "0.65rem", color: "white" }}
+                      >
+                        Current
                       </Typography>
                     </Box>
                   </Stack>
 
-                  {/* Progress Bar */}
-                  <Box sx={{ mt: 2 }}>
-                    <Typography
-                      variant="caption"
-                      sx={{ fontSize: "0.65rem", mb: 1, display: "block" }}
-                    >
-                      Progress:{" "}
-                      {Math.round(
-                        (Object.keys(answeredQuestions).length /
-                          questions.length) *
-                          100
-                      )}
-                      %
-                    </Typography>
-                    <LinearProgress
-                      variant="determinate"
-                      value={
-                        (Object.keys(answeredQuestions).length /
-                          questions.length) *
-                        100
+                  <Divider
+                    sx={{ mb: 2, backgroundColor: "rgba(255,255,255,0.3)" }}
+                  />
+
+                  {/* Question Grid Layout */}
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: {
+                        xs: "repeat(3, 1fr)", // 3 columns on mobile
+                        sm: "repeat(4, 1fr)", // 4 columns on tablet
+                        md: "repeat(5, 1fr)", // 5 columns on desktop
+                      },
+                      gap: 2,
+                      width: "100%",
+                      justifyItems: "center",
+                    }}
+                  >
+                    {Array.from({ length: questions.length }, (_, index) => {
+                      const questionNumber = index + 1;
+                      const isAnswered =
+                        answeredQuestions.hasOwnProperty(index);
+                      const isCurrent = index === currentQuestionIndex;
+
+                      // Determine status and colors to match the image
+                      let backgroundColor, status;
+
+                      if (isCurrent) {
+                        backgroundColor = "#5a9fd4"; // Blue for current (matching image)
+                        status = "Current";
+                      } else if (isAnswered) {
+                        // For now, treat all answered as correct (green)
+                        // You can modify this logic based on actual answer correctness
+                        backgroundColor = "#81c784"; // Green for correct (matching image)
+                        status = "Answered";
+                      } else if (index < currentQuestionIndex) {
+                        // Visited but not answered
+                        backgroundColor = "#e57373"; // Red for not answered (matching image)
+                        status = "Not answered";
+                      } else {
+                        // Not visited yet
+                        backgroundColor = "#9e9e9e"; // Gray for not visited (matching image)
+                        status = "Not visited";
                       }
-                      sx={{
-                        height: 6,
-                        borderRadius: 3,
-                        backgroundColor: "rgba(255,255,255,0.3)",
-                        "& .MuiLinearProgress-bar": {
-                          backgroundColor: "#4caf50",
+
+                      return (
+                        <Tooltip
+                          key={questionNumber}
+                          title={`Question ${questionNumber} (${status})`}
+                          placement="top"
+                        >
+                          <Paper
+                            sx={{
+                              width: 40,
+                              height: 40,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: "pointer",
+                              backgroundColor: backgroundColor,
+                              color: "white",
+                              borderRadius: 2,
+                              fontSize: "0.8rem",
+                              fontWeight: "bold",
+                              transition: "all 0.3s ease",
+                              position: "relative",
+                              border: "none",
+                              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                              "&:hover": {
+                                transform: "scale(1.05)",
+                                boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+                                opacity: 0.9,
+                              },
+                            }}
+                            onClick={() => {
+                              // Handle question navigation
+                              handleQuestionNavigation(index);
+                            }}
+                          >
+                            {questionNumber}
+                            {isCurrent && (
+                              <Box
+                                sx={{
+                                  position: "absolute",
+                                  top: -3,
+                                  right: -3,
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: "50%",
+                                  backgroundColor: "white",
+                                  animation: "pulse 1.5s infinite",
+                                  boxShadow: "0 0 0 2px #5a9fd4",
+                                }}
+                              />
+                            )}
+                          </Paper>
+                        </Tooltip>
+                      );
+                    })}
+                  </Box>
+
+                  {/* Statistics */}
+                  <Box
+                    sx={{
+                      mt: 3,
+                      pt: 2,
+                      borderTop: "1px solid rgba(255,255,255,0.3)",
+                    }}
+                  >
+                    <Stack spacing={1}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          sx={{ fontSize: "0.8rem" }}
+                        >
+                          Total:
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{ fontSize: "0.8rem", fontWeight: "bold" }}
+                        >
+                          {questions.length}
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          sx={{ fontSize: "0.8rem" }}
+                        >
+                          Answered:
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontSize: "0.8rem",
+                            fontWeight: "bold",
+                            color: "#0fec17ff",
+                          }}
+                        >
+                          {Object.keys(answeredQuestions).length}
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          sx={{ fontSize: "0.8rem" }}
+                        >
+                          Remaining:
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontSize: "0.8rem",
+                            fontWeight: "bold",
+                            color: "#953029ff",
+                          }}
+                        >
+                          {questions.length -
+                            Object.keys(answeredQuestions).length}
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          sx={{ fontSize: "0.8rem" }}
+                        >
+                          Current:
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontSize: "0.8rem",
+                            fontWeight: "bold",
+                            color: "#4a1ceeff",
+                          }}
+                        >
+                          Q{currentQuestionIndex + 1}
+                        </Typography>
+                      </Box>
+                    </Stack>
+
+                    {/* Progress Bar */}
+                    <Box sx={{ mt: 2 }}>
+                      <Typography
+                        variant="caption"
+                        sx={{ fontSize: "0.65rem", mb: 1, display: "block" }}
+                      >
+                        Progress:{" "}
+                        {Math.round(
+                          (Object.keys(answeredQuestions).length /
+                            questions.length) *
+                            100
+                        )}
+                        %
+                      </Typography>
+                      <LinearProgress
+                        variant="determinate"
+                        value={
+                          (Object.keys(answeredQuestions).length /
+                            questions.length) *
+                          100
+                        }
+                        sx={{
+                          height: 6,
                           borderRadius: 3,
-                        },
-                      }}
-                    />
+                          backgroundColor: "rgba(255,255,255,0.3)",
+                          "& .MuiLinearProgress-bar": {
+                            backgroundColor: "#4caf50",
+                            borderRadius: 3,
+                          },
+                        }}
+                      />
+                    </Box>
                   </Box>
                 </Box>
-              </Box>
 
-              {/* Security Status - Compact */}
-              <Box sx={{ mt: 2 }}>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontSize: "0.7rem",
-                    fontWeight: "bold",
-                    mb: 1,
-                    display: "block",
-                    textAlign: "center",
-                  }}
-                >
-                  Security Status
-                </Typography>
-
-                <Stack spacing={1}>
-                  <Box
+                {/* Security Status - Compact */}
+                <Box sx={{ mt: 2 }}>
+                  <Typography
+                    variant="caption"
                     sx={{
-                      backgroundColor: "rgba(255,255,255,0.1)",
-                      borderRadius: 1,
-                      p: 1,
-                      border: "1px solid rgba(255,255,255,0.2)",
+                      fontSize: "0.7rem",
+                      fontWeight: "bold",
+                      mb: 1,
+                      display: "block",
                       textAlign: "center",
                     }}
                   >
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        mb: 0.5,
-                      }}
-                    >
-                      <Badge color="success" variant="dot" sx={{ mr: 0.5 }}>
-                        <VideoCallIcon sx={{ fontSize: 12 }} />
-                      </Badge>
-                      <Typography variant="caption" sx={{ fontSize: "0.6rem" }}>
-                        Camera Active
-                      </Typography>
-                    </Box>
-                  </Box>
+                    Security Status
+                  </Typography>
 
-                  <Box
-                    sx={{
-                      backgroundColor: "rgba(255,255,255,0.1)",
-                      borderRadius: 1,
-                      p: 1,
-                      border: "1px solid rgba(255,255,255,0.2)",
-                      textAlign: "center",
-                    }}
-                  >
+                  <Stack spacing={1}>
                     <Box
                       sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        mb: 0.5,
+                        backgroundColor: "rgba(255,255,255,0.1)",
+                        borderRadius: 1,
+                        p: 1,
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        textAlign: "center",
                       }}
                     >
-                      <Badge color="success" variant="dot" sx={{ mr: 0.5 }}>
-                        <LockIcon sx={{ fontSize: 12 }} />
-                      </Badge>
-                      <Typography variant="caption" sx={{ fontSize: "0.6rem" }}>
-                        Tab Secured
-                      </Typography>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          mb: 0.5,
+                        }}
+                      >
+                        <Badge color="success" variant="dot" sx={{ mr: 0.5 }}>
+                          <VideoCallIcon sx={{ fontSize: 12 }} />
+                        </Badge>
+                        <Typography
+                          variant="caption"
+                          sx={{ fontSize: "0.6rem" }}
+                        >
+                          Camera Active
+                        </Typography>
+                      </Box>
                     </Box>
-                  </Box>
-                </Stack>
-              </Box>
-            </CardContent>
-          </Card>
+
+                    <Box
+                      sx={{
+                        backgroundColor: "rgba(255,255,255,0.1)",
+                        borderRadius: 1,
+                        p: 1,
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        textAlign: "center",
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          mb: 0.5,
+                        }}
+                      >
+                        <Badge color="success" variant="dot" sx={{ mr: 0.5 }}>
+                          <LockIcon sx={{ fontSize: 12 }} />
+                        </Badge>
+                        <Typography
+                          variant="caption"
+                          sx={{ fontSize: "0.6rem" }}
+                        >
+                          Tab Secured
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Stack>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
-      </Grid>
+      </Box>
     </Box>
   );
 };

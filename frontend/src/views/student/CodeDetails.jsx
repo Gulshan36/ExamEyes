@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Button,
   Card,
@@ -12,178 +12,450 @@ import {
   Radio,
   Stack,
   Typography,
+  Box,
+  Chip,
+  Divider,
+  Alert,
+  LinearProgress,
+  IconButton,
+  Tooltip,
+  Fade,
+  Zoom,
+  Slide,
+  useTheme,
+  useMediaQuery,
+  Fab,
 } from '@mui/material';
 import Paper from '@mui/material/Paper';
 import { useNavigate, useParams } from 'react-router';
+import {
+  Code as CodeIcon,
+  Timer as TimerIcon,
+  Quiz as QuizIcon,
+  Security as SecurityIcon,
+  CheckCircle as CheckCircleIcon,
+  Warning as WarningIcon,
+  School as SchoolIcon,
+  PlayArrow as PlayArrowIcon,
+  KeyboardArrowUp as KeyboardArrowUpIcon,
+} from '@mui/icons-material';
 
 const CodeDetailsMore = () => {
   const [certify, setCertify] = useState(false);
+  const [hoveredInstruction, setHoveredInstruction] = useState(null);
+  const [progressValue, setProgressValue] = useState(0);
+  const [showContent, setShowContent] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  
+  useEffect(() => {
+    setShowContent(true);
+    // Simulate progress for visual effect
+    const timer = setInterval(() => {
+      setProgressValue((prevProgress) => {
+        if (prevProgress >= 100) {
+          clearInterval(timer);
+          return 100;
+        }
+        return prevProgress + 10;
+      });
+    }, 100);
+
+    // Handle scroll for back to top button
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+  
   const handleCertifyChange = () => {
     setCertify(!certify);
   };
+  
   const { examId } = useParams();
 
   function handleCodeTest() {
     navigate(`/exam/${examId}/code`);
   }
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const skillTags = ['Python', 'Coding', 'Software', 'MCQ', 'Beginner', 'Programming Language'];
+  
+  const examStats = [
+    { icon: <QuizIcon />, label: 'Total Questions', value: '40' },
+    { icon: <TimerIcon />, label: 'Duration', value: '30 min' },
+    { icon: <SchoolIcon />, label: 'Level', value: 'Beginner' },
+    { icon: <SecurityIcon />, label: 'Proctored', value: 'Yes' },
+  ];
+
+  const instructions = [
+    {
+      icon: <QuizIcon color="primary" />,
+      text: 'This Practice Test consists of only MCQ questions.',
+      highlight: 'MCQ questions'
+    },
+    {
+      icon: <TimerIcon color="warning" />,
+      text: 'There are a total of 40 questions. Test Duration is 30 minutes.',
+      highlight: '40 questions, 30 minutes'
+    },
+    {
+      icon: <WarningIcon color="error" />,
+      text: 'There is Negative Marking for wrong answers.',
+      highlight: 'Negative Marking'
+    },
+    {
+      icon: <SecurityIcon color="error" />,
+      text: 'Do Not switch tabs while taking the test. Switching Tabs will Block / End the test automatically.',
+      highlight: 'Do Not switch tabs'
+    },
+    {
+      icon: <SecurityIcon color="primary" />,
+      text: 'The test will only run in full screen mode. Do not switch back to tab mode. Test will end automatically.',
+      highlight: 'full screen mode'
+    },
+    {
+      icon: <CodeIcon color="info" />,
+      text: 'You may need to use blank sheets for rough work. Please arrange for blank sheets before starting.',
+      highlight: 'blank sheets'
+    },
+    {
+      icon: <CheckCircleIcon color="success" />,
+      text: 'Clicking on Back or Next will save the answer.',
+      highlight: 'save the answer'
+    },
+    {
+      icon: <CheckCircleIcon color="info" />,
+      text: 'Questions can be reattempted till the time test is running.',
+      highlight: 'reattempted'
+    },
+    {
+      icon: <CheckCircleIcon color="primary" />,
+      text: 'Click on the finish test once you are done with the test.',
+      highlight: 'finish test'
+    },
+    {
+      icon: <CheckCircleIcon color="success" />,
+      text: 'You will be able to view the scores once your test is complete.',
+      highlight: 'view the scores'
+    },
+  ];
   return (
-    <div>
-      <Card>
+    <Box sx={{ p: 3, maxHeight: '100vh', overflowY: 'auto' }}>
+      {/* Loading Progress */}
+      <Fade in={progressValue < 100} timeout={500}>
+        <Box sx={{ mb: 2 }}>
+          <LinearProgress 
+            variant="determinate" 
+            value={progressValue} 
+            sx={{ 
+              height: 6, 
+              borderRadius: 3,
+              backgroundColor: 'grey.200',
+              '& .MuiLinearProgress-bar': {
+                background: 'linear-gradient(90deg, #2196F3 0%, #21CBF3 100%)',
+                borderRadius: 3,
+              }
+            }} 
+          />
+        </Box>
+      </Fade>
+
+      <Slide direction="down" in={showContent} timeout={800}>
+        <Box>
+          {/* Header Section */}
+          <Box sx={{ mb: 4 }}>
+            
+            {/* Exam Statistics Cards */}
+            <Grid container spacing={isMobile ? 1 : 2} sx={{ mb: 3 }}>
+              {examStats.map((stat, index) => (
+                <Grid item xs={6} sm={3} key={index}>
+                  <Zoom in={showContent} timeout={1200 + index * 200}>
+                    <Card 
+                      sx={{ 
+                        textAlign: 'center',
+                        background: `linear-gradient(135deg, ${
+                          index % 4 === 0 ? '#667eea 0%, #764ba2 100%' :
+                          index % 4 === 1 ? '#f093fb 0%, #f5576c 100%' :
+                          index % 4 === 2 ? '#4facfe 0%, #00f2fe 100%' :
+                          '#43e97b 0%, #38f9d7 100%'
+                        })`,
+                        color: 'white',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        cursor: 'pointer',
+                        '&:hover': {
+                          transform: isMobile ? 'scale(1.02)' : 'translateY(-8px) scale(1.02)',
+                          boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
+                        }
+                      }}
+                    >
+                      <CardContent sx={{ py: isMobile ? 1.5 : 2 }}>
+                        <Box sx={{ mb: 1, fontSize: isMobile ? '1.5rem' : '2rem' }}>
+                          {stat.icon}
+                        </Box>
+                        <Typography variant={isMobile ? "body1" : "h6"} sx={{ fontWeight: 'bold' }}>
+                          {stat.value}
+                        </Typography>
+                        <Typography variant="caption">
+                          {stat.label}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Zoom>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+
+      {/* Description Section */}
+      <Card sx={{ mb: 4, borderRadius: 3, boxShadow: 3 }}>
         <CardContent>
-          <Typography variant="h2" mb={3}>
-            Description
-          </Typography>
-          <Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <CodeIcon sx={{ mr: 1, color: 'primary.main' }} />
+            <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+              Description
+            </Typography>
+          </Box>
+          
+          <Typography variant="body1" sx={{ mb: 3, lineHeight: 1.7, color: 'text.secondary' }}>
             This practice test will allow you to measure your Python skills at the beginner level by
-            the way of various multiple choice questions. We recommend you to score at least 75% in
-            this test before moving to the next level questionnaire. It will help you in identifying
+            the way of various multiple choice questions. We recommend you to score at least{' '}
+            <Chip label="75%" color="success" size="small" sx={{ mx: 0.5 }} />
+            in this test before moving to the next level questionnaire. It will help you in identifying
             your strength and development areas. Based on the same you can plan your next steps in
             learning Python and preparing for job placements.
           </Typography>
 
-          <Typography>#Python #Coding #Software #MCQ #Beginner #Programming Language</Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {skillTags.map((tag, index) => (
+              <Chip 
+                key={index}
+                label={`#${tag}`}
+                variant="outlined"
+                color="primary"
+                size="small"
+                sx={{
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    backgroundColor: 'primary.main',
+                    color: 'white',
+                  }
+                }}
+              />
+            ))}
+          </Box>
+        </CardContent>
+      </Card>
 
-          <>
-            <Typography variant="h3" mb={3} mt={3}>
+      {/* Instructions Section */}
+      <Card sx={{ mb: 4, borderRadius: 3, boxShadow: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <SecurityIcon sx={{ mr: 1, color: 'warning.main' }} />
+            <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'warning.main' }}>
               Test Instructions
             </Typography>
-            <List>
-              <ol>
-                <li>
-                  <ListItemText>
-                    <Typography variant="body1">
-                      This Practice Test consists of only <strong>MCQ questions.</strong>
-                    </Typography>
-                  </ListItemText>
-                </li>
-                <li>
-                  <ListItemText>
-                    <Typography variant="body1">
-                      There are a total of <strong>40 questions.</strong> Test Duration is{' '}
-                      <strong>30 minutes.</strong>
-                    </Typography>
-                  </ListItemText>
-                </li>
-                <li>
-                  <ListItemText>
-                    <Typography variant="body1">
-                      There is <strong>Negative Marking</strong> for wrong answers.
-                    </Typography>
-                  </ListItemText>
-                </li>
-                <li>
-                  <ListItemText>
-                    <Typography variant="body1">
-                      <strong>Do Not switch tabs </strong> while taking the test.
-                      <strong> Switching Tabs will Block / End the test automatically.</strong>
-                    </Typography>
-                  </ListItemText>
-                </li>
-                <li>
-                  <ListItemText>
-                    <Typography variant="body1">
-                      The test will only run in <strong>full screen mode.</strong> Do not switch
-                      back to tab mode. Test will end automatically.
-                    </Typography>
-                  </ListItemText>
-                </li>
-                <li>
-                  <ListItemText>
-                    <Typography variant="body1">
-                      You may need to use blank sheets for rough work. Please arrange for blank
-                      sheets before starting.
-                    </Typography>
-                  </ListItemText>
-                </li>
-                <li>
-                  <ListItemText>
-                    <Typography variant="body1">
-                      Clicking on Back or Next will save the answer.
-                    </Typography>
-                  </ListItemText>
-                </li>
-                <li>
-                  <ListItemText>
-                    <Typography variant="body1">
-                      Questions can be reattempted till the time test is running.
-                    </Typography>
-                  </ListItemText>
-                </li>
-                <li>
-                  <ListItemText>
-                    <Typography variant="body1">
-                      Click on the finish test once you are done with the test.
-                    </Typography>
-                  </ListItemText>
-                </li>
-                <li>
-                  <ListItemText>
-                    <Typography variant="body1">
-                      You will be able to view the scores once your test is complete.
-                    </Typography>
-                  </ListItemText>
-                </li>
-              </ol>
-            </List>
-          </>
-          <Typography variant="h3" mb={3} mt={3}>
-            Confirmation
-          </Typography>
-          <Typography mb={3}>
-            Your actions shall be proctored and any signs of wrongdoing may lead to suspension or
-            cancellation of your test.
-          </Typography>
+          </Box>
+          
+          <List sx={{ p: 0 }}>
+            {instructions.map((instruction, index) => (
+              <ListItem 
+                key={index}
+                sx={{ 
+                  mb: 2,
+                  backgroundColor: hoveredInstruction === index ? 'action.hover' : 'transparent',
+                  borderRadius: 2,
+                  transition: 'all 0.2s',
+                  cursor: 'default',
+                  border: '1px solid',
+                  borderColor: hoveredInstruction === index ? 'primary.main' : 'divider',
+                }}
+                onMouseEnter={() => setHoveredInstruction(index)}
+                onMouseLeave={() => setHoveredInstruction(null)}
+              >
+                <Box sx={{ mr: 2 }}>
+                  {instruction.icon}
+                </Box>
+                <ListItemText>
+                  <Typography variant="body1" sx={{ lineHeight: 1.6 }}>
+                    <Box component="span" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                      {index + 1}.
+                    </Box>
+                    {' '}
+                    {instruction.text.replace(instruction.highlight, '')}
+                    <Box component="span" sx={{ fontWeight: 'bold', color: 'secondary.main' }}>
+                      {instruction.highlight}
+                    </Box>
+                    {instruction.text.split(instruction.highlight)[1]}
+                  </Typography>
+                </ListItemText>
+              </ListItem>
+            ))}
+          </List>
+        </CardContent>
+      </Card>
+
+      {/* Confirmation Section */}
+      <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <CheckCircleIcon sx={{ mr: 1, color: 'success.main' }} />
+            <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'success.main' }}>
+              Confirmation
+            </Typography>
+          </Box>
+          
+          <Alert 
+            severity="warning" 
+            sx={{ mb: 3, borderRadius: 2 }}
+            icon={<SecurityIcon />}
+          >
+            <Typography variant="body1">
+              Your actions shall be proctored and any signs of wrongdoing may lead to suspension or
+              cancellation of your test.
+            </Typography>
+          </Alert>
+          
+          <Divider sx={{ my: 3 }} />
+          
           <Stack direction="column" alignItems="center" spacing={3}>
             <FormControlLabel
               control={
-                <Checkbox checked={certify} onChange={handleCertifyChange} color="primary" />
+                <Checkbox 
+                  checked={certify} 
+                  onChange={handleCertifyChange} 
+                  color="primary"
+                  sx={{
+                    '& .MuiSvgIcon-root': {
+                      fontSize: 28,
+                    }
+                  }}
+                />
               }
-              label="I certify that I have carefully read and agree to all of the instructions mentioned above"
+              label={
+                <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                  I certify that I have carefully read and agree to all of the instructions mentioned above
+                </Typography>
+              }
+              sx={{
+                '& .MuiFormControlLabel-label': {
+                  color: certify ? 'success.main' : 'text.secondary',
+                  transition: 'color 0.2s',
+                }
+              }}
             />
-            <div style={{ display: 'flex', padding: '2px', margin: '10px' }}>
-              <Button
-                onClick={handleCodeTest}
-                style={{ marginLeft: '21px' }}
-                disabled={!certify}
-                variant="contained"
-                color="primary"
-              >
-                Coding test
-              </Button>
-            </div>
+            
+            <Box sx={{ position: 'relative' }}>
+              <Zoom in={showContent} timeout={2000}>
+                <Button
+                  onClick={handleCodeTest}
+                  disabled={!certify}
+                  variant="contained"
+                  size="large"
+                  sx={{
+                    py: 2,
+                    px: 6,
+                    borderRadius: 50,
+                    background: certify 
+                      ? 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)'
+                      : 'grey.300',
+                    fontSize: '1.2rem',
+                    fontWeight: 'bold',
+                    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&:before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: '-100%',
+                      width: '100%',
+                      height: '100%',
+                      background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+                      transition: 'left 0.5s',
+                    },
+                    '&:hover': {
+                      transform: certify ? 'translateY(-3px) scale(1.05)' : 'none',
+                      boxShadow: certify ? '0 10px 30px rgba(33, 150, 243, 0.4)' : 1,
+                      '&:before': {
+                        left: '100%',
+                      }
+                    },
+                    '&:disabled': {
+                      color: 'grey.500',
+                      transform: 'none',
+                    }
+                  }}
+                  startIcon={<PlayArrowIcon />}
+                >
+                  Start Coding Test
+                </Button>
+              </Zoom>
+              
+              <Fade in={!certify} timeout={500}>
+                <Typography 
+                  variant="caption" 
+                  color="error"
+                  sx={{ 
+                    position: 'absolute',
+                    top: '100%',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    mt: 1,
+                    whiteSpace: 'nowrap',
+                    fontWeight: 500,
+                  }}
+                >
+                  Please accept the terms to continue
+                </Typography>
+              </Fade>
+            </Box>
           </Stack>
         </CardContent>
       </Card>
-    </div>
+        </Box>
+      </Slide>
+
+      {/* Floating Action Button for Scroll to Top */}
+      <Fade in={showScrollTop}>
+        <Fab
+          color="primary"
+          size="small"
+          onClick={scrollToTop}
+          sx={{
+            position: 'fixed',
+            bottom: 16,
+            right: 16,
+            zIndex: 1000,
+            background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+            '&:hover': {
+              transform: 'scale(1.1)',
+            }
+          }}
+        >
+          <KeyboardArrowUpIcon />
+        </Fab>
+      </Fade>
+    </Box>
   );
 };
 
 const imgUrl =
   'https://cdn-api.elice.io/api-attachment/attachment/61bd920a02e1497b8f9fab92d566e103/image.jpeg';
+
 export function CodeDetails() {
-  return (
-    <>
-      <Grid container sx={{ height: '100vh' }}>
-        <Grid
-          item
-          xs={false}
-          sm={4}
-          md={7}
-          sx={{
-            backgroundImage: `url(${imgUrl})`, // 'url(https://source.unsplash.com/random?wallpapers)',
-            backgroundRepeat: 'no-repeat',
-            backgroundColor: (t) =>
-              t.palette.mode === 'light' ? t.palette.grey[50] : t.palette.grey[900],
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
-        />
-        <Grid item xs={12} sm={8} md={5} component={Paper} elevation={6} square>
-          <CodeDetailsMore />
-        </Grid>
-      </Grid>
-    </>
+  return ( 
+        <CodeDetailsMore />
   );
 }
 
