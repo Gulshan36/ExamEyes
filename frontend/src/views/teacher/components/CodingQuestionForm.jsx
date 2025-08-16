@@ -1,6 +1,6 @@
 import React from 'react';
-import { TextField, Box, Typography, Button, IconButton, Card, CardContent } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { TextField, Box, Typography, Button, IconButton, Card, CardContent, Grid } from '@mui/material';
+import { Add as AddIcon, Delete as DeleteIcon, Timer as TimerIcon } from '@mui/icons-material';
 
 const CodingQuestionForm = ({ formik }) => {
   // Debug log to see what we're getting
@@ -10,18 +10,18 @@ const CodingQuestionForm = ({ formik }) => {
   // Ensure we have at least an empty array with one question
   const codingQuestions = formik.values.codingQuestions && formik.values.codingQuestions.length > 0 
     ? formik.values.codingQuestions 
-    : [{ question: '', description: '' }];
+    : [{ question: '', description: '', duration: 30 }]; // Added default duration of 30 minutes
 
   // Update formik if we had to create a default question
   React.useEffect(() => {
     if (!formik.values.codingQuestions || formik.values.codingQuestions.length === 0) {
       console.log('Initializing with one empty question');
-      formik.setFieldValue('codingQuestions', [{ question: '', description: '' }]);
+      formik.setFieldValue('codingQuestions', [{ question: '', description: '', duration: 30 }]);
     }
   }, [formik.values.codingQuestions]);
 
   const addQuestion = () => {
-    const newQuestion = { question: '', description: '' };
+    const newQuestion = { question: '', description: '', duration: 30 }; // Added default duration
     const currentQuestions = formik.values.codingQuestions || [];
     const updatedQuestions = [...currentQuestions, newQuestion];
     formik.setFieldValue('codingQuestions', updatedQuestions);
@@ -32,7 +32,7 @@ const CodingQuestionForm = ({ formik }) => {
     const updatedQuestions = currentQuestions.filter((_, i) => i !== index);
     // Don't allow removing the last question
     if (updatedQuestions.length === 0) {
-      updatedQuestions.push({ question: '', description: '' });
+      updatedQuestions.push({ question: '', description: '', duration: 30 });
     }
     formik.setFieldValue('codingQuestions', updatedQuestions);
   };
@@ -115,6 +115,61 @@ const CodingQuestionForm = ({ formik }) => {
               }
               sx={{ mb: 2 }}
             />
+
+            {/* Duration Field */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, color: '#159fc1', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+                <TimerIcon sx={{ mr: 1, fontSize: '1.2rem' }} />
+                Question Duration
+              </Typography>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={8} sm={6}>
+                  <TextField
+                    fullWidth
+                    id={`codingQuestions.${index}.duration`}
+                    name={`codingQuestions.${index}.duration`}
+                    label="Duration (minutes)"
+                    type="number"
+                    value={question.duration || 30}
+                    onChange={formik.handleChange}
+                    error={
+                      formik.touched.codingQuestions?.[index]?.duration &&
+                      Boolean(formik.errors.codingQuestions?.[index]?.duration)
+                    }
+                    helperText={
+                      formik.touched.codingQuestions?.[index]?.duration && 
+                      formik.errors.codingQuestions?.[index]?.duration
+                    }
+                    inputProps={{ 
+                      min: 1, 
+                      max: 180,
+                      step: 1 
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        '&:hover fieldset': {
+                          borderColor: '#41bcba',
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#41bcba',
+                        },
+                      },
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={4} sm={6}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                    {question.duration && question.duration > 60 
+                      ? `${Math.floor(question.duration / 60)}h ${question.duration % 60}m`
+                      : `${question.duration || 30} minutes`
+                    }
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block' }}>
+                    Recommended: 15-60 minutes
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Box>
           </CardContent>
         </Card>
       ))}

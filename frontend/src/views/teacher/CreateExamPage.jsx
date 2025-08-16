@@ -29,6 +29,13 @@ const examValidationSchema = yup.object({
     yup.object().shape({
       question: yup.string().required('Coding Question is required'),
       description: yup.string().required('Question Description is required'),
+      duration: yup
+        .number()
+        .typeError('Duration must be a number')
+        .integer('Duration must be an integer')
+        .min(1, 'Duration must be at least 1 minute')
+        .max(180, 'Duration cannot exceed 180 minutes')
+        .required('Question Duration is required'),
     })
   ).min(1, 'At least one coding question is required'),
 });
@@ -50,6 +57,7 @@ const CreateExamPage = () => {
       {
         question: '',
         description: '',
+        duration: 30, // Default 30 minutes
       }
     ],
   };
@@ -82,6 +90,7 @@ const CreateExamPage = () => {
               {
                 question: '',
                 description: '',
+                duration: 30,
               }
             ],
           }
@@ -97,7 +106,7 @@ const CreateExamPage = () => {
   // Ensure codingQuestions always has at least one question
   useEffect(() => {
     if (!formik.values.codingQuestions || formik.values.codingQuestions.length === 0) {
-      formik.setFieldValue('codingQuestions', [{ question: '', description: '' }]);
+      formik.setFieldValue('codingQuestions', [{ question: '', description: '', duration: 30 }]);
     }
   }, []);
 
@@ -111,10 +120,18 @@ const CreateExamPage = () => {
         liveDate: examData.liveDate ? new Date(examData.liveDate).toISOString().slice(0, 16) : '',
         deadDate: examData.deadDate ? new Date(examData.deadDate).toISOString().slice(0, 16) : '',
         codingQuestions: examData.codingQuestions && examData.codingQuestions.length > 0 
-          ? examData.codingQuestions 
+          ? examData.codingQuestions.map(q => ({
+              question: q.question || '',
+              description: q.description || '',
+              duration: q.duration || 30 // Default to 30 if no duration set
+            }))
           : examData.codingQuestion 
-            ? [{ question: examData.codingQuestion.question || '', description: examData.codingQuestion.description || '' }]
-            : [{ question: '', description: '' }],
+            ? [{ 
+                question: examData.codingQuestion.question || '', 
+                description: examData.codingQuestion.description || '',
+                duration: examData.codingQuestion.duration || 30
+              }]
+            : [{ question: '', description: '', duration: 30 }],
       });
     }
   }, [examId, examData]);
