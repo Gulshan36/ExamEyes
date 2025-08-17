@@ -1,1 +1,1 @@
-print("hrllo");
+console.log("hello world")

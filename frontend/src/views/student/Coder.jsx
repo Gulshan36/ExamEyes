@@ -52,18 +52,22 @@ import {
   Psychology as PsychologyIcon,
   Speed as SpeedIcon,
   Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
   Lightbulb as LightbulbIcon,
   Star as StarIcon,
   TrendingUp as TrendingUpIcon,
   School as SchoolIcon,
   NavigateNext as NavigateNextIcon,
   NavigateBefore as NavigateBeforeIcon,
+  DragIndicator as DragIndicatorIcon,
+  Close as CloseIcon,
 } from "@mui/icons-material";
 import { useSaveCheatingLogMutation } from "src/slices/cheatingLogApiSlice";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { useNavigate, useParams } from "react-router";
 import { useCheatingLog } from "src/context/CheatingLogContext";
+import NumberOfQuestions from "./Components/NumberOfQuestions";
 
 export default function Coder() {
   const [code, setCode] = useState("// Write your code here...");
@@ -93,6 +97,17 @@ export default function Coder() {
     focusTime: 0,
   });
   const [progressValue, setProgressValue] = useState(0);
+  const [timeRemaining, setTimeRemaining] = useState(null); // Time remaining for current question in seconds
+  const [questionStartTime, setQuestionStartTime] = useState(null); // When current question was started
+  const [isTimerActive, setIsTimerActive] = useState(false);
+  const [questionTimers, setQuestionTimers] = useState({}); // Store remaining time for each question
+  const [questionStates, setQuestionStates] = useState({}); // Track if question is completed
+  
+  // Webcam state variables
+  const [isWebcamVisible, setIsWebcamVisible] = useState(true);
+  const [webcamPosition, setWebcamPosition] = useState({ x: 20, y: 20 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   const { examId } = useParams();
   const navigate = useNavigate();
@@ -168,6 +183,53 @@ export default function Coder() {
     return new Date(date).toLocaleTimeString();
   };
 
+  // Webcam control functions
+  const toggleWebcamVisibility = () => {
+    setIsWebcamVisible(!isWebcamVisible);
+  };
+
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDragging) {
+      const newX = e.clientX - dragOffset.x;
+      const newY = e.clientY - dragOffset.y;
+      
+      // Constrain to window bounds
+      const maxX = window.innerWidth - 200; // webcam width
+      const maxY = window.innerHeight - 150; // webcam height
+      
+      setWebcamPosition({
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY)),
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Add global mouse event listeners for dragging
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragOffset]);
+
   useEffect(() => {
     if (userInfo) {
       updateCheatingLog((prevLog) => ({
@@ -184,24 +246,28 @@ export default function Coder() {
       try {
         setIsLoading(true);
         const response = await axios.get(`/api/coding/question/exam/${examId}`);
-        if (response.data.success && response.data.data && response.data.data.length > 0) {
+        if (
+          response.data.success &&
+          response.data.data &&
+          response.data.data.length > 0
+        ) {
           // Store all questions
           setQuestions(response.data.data);
-          
+
           // Set the first question as current
           const firstQuestion = response.data.data[0];
           setQuestionId(firstQuestion._id || examId);
           setQuestion(firstQuestion);
-          
+
           // Initialize saved codes for all questions
           const initialCodes = {};
           response.data.data.forEach((q, index) => {
-            initialCodes[index] = q.description 
+            initialCodes[index] = q.description
               ? `// ${q.description}\n\n// Write your code here...`
               : "// Write your code here...";
           });
           setSavedCodes(initialCodes);
-          
+
           // Set initial code for first question
           setCode(initialCodes[0]);
         } else {
@@ -227,43 +293,166 @@ export default function Coder() {
   // Navigation functions for multiple questions
   const goToNextQuestion = () => {
     if (currentQuestionIndex < questions.length - 1) {
-      // Save current code before switching
-      setSavedCodes(prev => ({
+      // Save current code and timer state before switching
+      setSavedCodes((prev) => ({
         ...prev,
-        [currentQuestionIndex]: code
+        [currentQuestionIndex]: code,
       }));
-      
+
+      // Pause current timer
+      pauseTimer(currentQuestionIndex);
+
       const nextIndex = currentQuestionIndex + 1;
       setCurrentQuestionIndex(nextIndex);
       setQuestion(questions[nextIndex]);
       setCode(savedCodes[nextIndex] || "// Write your code here...");
       setOutput(""); // Clear output when switching questions
+
+      // Start timer for next question (will use saved time if available)
+      if (questions[nextIndex] && questions[nextIndex].duration) {
+        startTimer(questions[nextIndex].duration, nextIndex);
+      }
     }
   };
 
   const goToPreviousQuestion = () => {
     if (currentQuestionIndex > 0) {
-      // Save current code before switching
-      setSavedCodes(prev => ({
+      // Save current code and timer state before switching
+      setSavedCodes((prev) => ({
         ...prev,
-        [currentQuestionIndex]: code
+        [currentQuestionIndex]: code,
       }));
-      
+
+      // Pause current timer
+      pauseTimer(currentQuestionIndex);
+
       const prevIndex = currentQuestionIndex - 1;
       setCurrentQuestionIndex(prevIndex);
       setQuestion(questions[prevIndex]);
       setCode(savedCodes[prevIndex] || "// Write your code here...");
       setOutput(""); // Clear output when switching questions
+
+      // Start timer for previous question (will use saved time if available)
+      if (questions[prevIndex] && questions[prevIndex].duration) {
+        startTimer(questions[prevIndex].duration, prevIndex);
+      }
     }
   };
 
   // Update saved code when user types
   useEffect(() => {
-    setSavedCodes(prev => ({
+    setSavedCodes((prev) => ({
       ...prev,
-      [currentQuestionIndex]: code
+      [currentQuestionIndex]: code,
     }));
   }, [code, currentQuestionIndex]);
+
+  // Timer functionality
+  const startTimer = (
+    durationInMinutes,
+    questionIndex = currentQuestionIndex
+  ) => {
+    // Check if we have a saved timer state for this question
+    const savedTime = questionTimers[questionIndex];
+    const durationInSeconds =
+      savedTime !== undefined ? savedTime : durationInMinutes * 60;
+
+    setTimeRemaining(durationInSeconds);
+    setQuestionStartTime(new Date());
+    setIsTimerActive(true);
+  };
+
+  const pauseTimer = (questionIndex = currentQuestionIndex) => {
+    setIsTimerActive(false);
+    // Save the current remaining time for this question
+    setQuestionTimers((prev) => ({
+      ...prev,
+      [questionIndex]: timeRemaining,
+    }));
+  };
+
+  const completeQuestion = (questionIndex = currentQuestionIndex) => {
+    // Mark question as completed and stop its timer
+    setQuestionStates((prev) => ({
+      ...prev,
+      [questionIndex]: "completed",
+    }));
+    pauseTimer(questionIndex);
+  };
+
+  const formatTimeRemaining = (seconds) => {
+    if (seconds === null) return "00:00";
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, "0")}:${remainingSeconds
+      .toString()
+      .padStart(2, "0")}`;
+  };
+
+  // Timer countdown effect
+  useEffect(() => {
+    let interval = null;
+    if (
+      isTimerActive &&
+      timeRemaining > 0 &&
+      questionStates[currentQuestionIndex] !== "completed"
+    ) {
+      interval = setInterval(() => {
+        setTimeRemaining((timeRemaining) => {
+          if (timeRemaining <= 1) {
+            setIsTimerActive(false);
+            toast.warning(
+              `Time's up for Question ${currentQuestionIndex + 1}!`
+            );
+            // Save the timer state as expired
+            setQuestionTimers((prev) => ({
+              ...prev,
+              [currentQuestionIndex]: 0,
+            }));
+            return 0;
+          }
+          const newTime = timeRemaining - 1;
+          // Continuously save the current time
+          setQuestionTimers((prev) => ({
+            ...prev,
+            [currentQuestionIndex]: newTime,
+          }));
+          return newTime;
+        });
+      }, 1000);
+    } else if (timeRemaining === 0) {
+      setIsTimerActive(false);
+    }
+    return () => clearInterval(interval);
+  }, [isTimerActive, timeRemaining, currentQuestionIndex, questionStates]);
+
+  // Start timer when question changes or component mounts
+  useEffect(() => {
+    if (
+      question &&
+      question.duration &&
+      questionStates[currentQuestionIndex] !== "completed"
+    ) {
+      // Check if we have a saved timer for this question
+      const savedTime = questionTimers[currentQuestionIndex];
+      if (savedTime !== undefined && savedTime > 0) {
+        // Resume from saved time
+        setTimeRemaining(savedTime);
+        setIsTimerActive(true);
+      } else if (savedTime === undefined) {
+        // First time visiting this question, start fresh timer
+        startTimer(question.duration, currentQuestionIndex);
+      } else {
+        // Timer has expired
+        setTimeRemaining(0);
+        setIsTimerActive(false);
+      }
+    } else if (questionStates[currentQuestionIndex] === "completed") {
+      // Question is completed, don't run timer
+      setTimeRemaining(questionTimers[currentQuestionIndex] || 0);
+      setIsTimerActive(false);
+    }
+  }, [question, currentQuestionIndex]);
 
   const runCode = async () => {
     setIsRunning(true);
@@ -296,6 +485,9 @@ export default function Coder() {
       console.log("API Response:", response.data);
       setOutput(`✅ Execution completed:\n\n${response.data.output}`);
       toast.success("Code executed successfully!");
+
+      // Mark question as completed when code runs successfully
+      completeQuestion(currentQuestionIndex);
     } catch (error) {
       console.error("Error running code:", error);
       setOutput(
@@ -378,1029 +570,759 @@ export default function Coder() {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
-        background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
-        p: { xs: 1, sm: 2, md: 3 },
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        backgroundColor: "#1a1a1a",
+        color: "#ffffff",
+        overflow: "hidden",
       }}
     >
-      {/* Loading Progress */}
-      <Fade in={progressValue < 100} timeout={500}>
-        <Box sx={{ mb: 2 }}>
-          <LinearProgress
-            variant="determinate"
-            value={progressValue}
+      {/* LeetCode-style Header */}
+      <Box
+        sx={{
+          height: "60px",
+          backgroundColor: "#2d2d2d",
+          borderBottom: "1px solid #3a3a3a",
+          display: "flex",
+          alignItems: "center",
+          px: 3,
+          zIndex: 1000,
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", flex: 1 }}>
+          {/* Logo/Title */}
+          <Box sx={{ display: "flex", alignItems: "center", mr: 4 }}>
+            <CodeIcon sx={{ color: "#ffa116", fontSize: 28, mr: 1 }} />
+            <Typography variant="h6" sx={{ fontWeight: "bold", color: "#ffffff" }}>
+              ExamEye
+            </Typography>
+          </Box>
+
+          {/* Question Navigation */}
+          {questions.length > 1 && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <IconButton
+                onClick={goToPreviousQuestion}
+                disabled={currentQuestionIndex === 0}
+                sx={{
+                  color: currentQuestionIndex === 0 ? "#666" : "#ffa116",
+                  "&:hover": { backgroundColor: "rgba(255, 161, 22, 0.1)" },
+                }}
+              >
+                <NavigateBeforeIcon />
+              </IconButton>
+              
+              <Typography sx={{ color: "#ffffff", fontWeight: "medium" }}>
+                {currentQuestionIndex + 1} / {questions.length}
+              </Typography>
+              
+              <IconButton
+                onClick={goToNextQuestion}
+                disabled={currentQuestionIndex === questions.length - 1}
+                sx={{
+                  color: currentQuestionIndex === questions.length - 1 ? "#666" : "#ffa116",
+                  "&:hover": { backgroundColor: "rgba(255, 161, 22, 0.1)" },
+                }}
+              >
+                <NavigateNextIcon />
+              </IconButton>
+            </Box>
+          )}
+        </Box>
+
+        {/* Webcam Toggle and Timer Display */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          {/* Webcam Toggle Button */}
+          {/* {!isMobile && (
+            <Tooltip title={isWebcamVisible ? "Hide Camera" : "Show Camera"}>
+              <IconButton
+                onClick={toggleWebcamVisibility}
+                sx={{
+                  color: isWebcamVisible ? "#ffa116" : "#666",
+                  "&:hover": { 
+                    backgroundColor: "rgba(255, 161, 22, 0.1)",
+                    color: "#ffa116"
+                  },
+                }}
+              >
+                {isWebcamVisible ? <VisibilityIcon /> : <VisibilityOffIcon />}
+              </IconButton>
+            </Tooltip>
+          )} */}
+          
+          {/* Timer Display */}
+          {question && question.duration && (
+            <>
+              <TimerIcon 
+                sx={{ 
+                  color: questionStates[currentQuestionIndex] === 'completed'
+                    ? '#00c851'
+                    : timeRemaining <= 300 
+                    ? '#ff4444' 
+                    : '#ffa116',
+                  fontSize: 20
+                }} 
+              />
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  fontFamily: 'monospace',
+                  fontWeight: 'bold',
+                  color: questionStates[currentQuestionIndex] === 'completed'
+                    ? '#00c851'
+                    : timeRemaining <= 300 
+                    ? '#ff4444' 
+                    : '#ffffff',
+                }}
+              >
+                {questionStates[currentQuestionIndex] === 'completed'
+                  ? '✓ Completed'
+                  : formatTimeRemaining(timeRemaining)}
+              </Typography>
+            </>
+          )}
+        </Box>
+
+        {/* Action Buttons */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={runCode}
+            disabled={isRunning}
+            startIcon={isRunning ? <LinearProgress size={16} /> : <PlayArrowIcon />}
             sx={{
-              height: 6,
-              borderRadius: 3,
-              backgroundColor: "grey.200",
-              "& .MuiLinearProgress-bar": {
-                background: "linear-gradient(90deg, #2196F3 0%, #21CBF3 100%)",
-                borderRadius: 3,
+              borderColor: "#00c851",
+              color: "#00c851",
+              "&:hover": {
+                borderColor: "#00a844",
+                backgroundColor: "rgba(0, 200, 81, 0.1)",
+              },
+              "&:disabled": {
+                borderColor: "#666",
+                color: "#666",
+              },
+            }}
+          >
+            {isRunning ? "Running..." : "Run"}
+          </Button>
+          
+          <Button
+            variant="contained"
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            startIcon={isSubmitting ? <LinearProgress size={16} /> : <SendIcon />}
+            sx={{
+              backgroundColor: "#ffa116",
+              color: "#000",
+              fontWeight: "bold",
+              "&:hover": {
+                backgroundColor: "#e6900e",
+              },
+              "&:disabled": {
+                backgroundColor: "#666",
+                color: "#999",
+              },
+            }}
+          >
+            {isSubmitting ? "Submitting..." : "Submit"}
+          </Button>
+        </Box>
+      </Box>
+
+      {isLoading ? (
+        <Box sx={{ 
+          flex: 1, 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "center",
+          backgroundColor: "#1a1a1a"
+        }}>
+          <Box sx={{ textAlign: "center" }}>
+            <CodeIcon sx={{ fontSize: 80, color: "#ffa116", mb: 2 }} />
+            <Typography variant="h5" sx={{ color: "#ffffff", mb: 2 }}>
+              Loading Question...
+            </Typography>
+            <LinearProgress 
+              sx={{ 
+                width: 300,
+                backgroundColor: "#3a3a3a",
+                "& .MuiLinearProgress-bar": {
+                  backgroundColor: "#ffa116",
+                },
+              }} 
+            />
+          </Box>
+        </Box>
+      ) : !question ? (
+        <Box sx={{ 
+          flex: 1, 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "center",
+          backgroundColor: "#1a1a1a"
+        }}>
+          <Alert 
+            severity="warning" 
+            sx={{ 
+              backgroundColor: "#2d2d2d",
+              color: "#ffffff",
+              border: "1px solid #ffa116",
+            }}
+          >
+            <Typography variant="h6" sx={{ color: "#ffffff" }}>
+              No coding question found for this exam.
+            </Typography>
+            <Typography sx={{ color: "#cccccc" }}>
+              Please contact your teacher for assistance.
+            </Typography>
+          </Alert>
+        </Box>
+      ) : (
+        <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
+          {/* Left Panel - Problem Description */}
+          <Box
+            sx={{
+              width: "45%",
+              backgroundColor: "#1a1a1a",
+              borderRight: "1px solid #3a3a3a",
+              overflow: "auto",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {/* Problem Header */}
+            <Box sx={{ p: 3, borderBottom: "1px solid #3a3a3a" }}>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+                <Typography variant="h5" sx={{ fontWeight: "bold", color: "#ffffff" }}>
+                  {currentQuestionIndex + 1}. {question.question}
+                </Typography>
+                {questionStates[currentQuestionIndex] === 'completed' && (
+                  <Chip
+                    icon={<CheckCircleIcon />}
+                    label="Solved"
+                    sx={{
+                      backgroundColor: "rgba(0, 200, 81, 0.2)",
+                      color: "#00c851",
+                      border: "1px solid #00c851",
+                    }}
+                  />
+                )}
+              </Box>
+              
+              <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+                <Chip
+                  label="Medium"
+                  sx={{
+                    backgroundColor: "rgba(255, 161, 22, 0.2)",
+                    color: "#ffa116",
+                    border: "1px solid #ffa116",
+                  }}
+                />
+                <Chip
+                  label={`${language.charAt(0).toUpperCase() + language.slice(1)}`}
+                  sx={{
+                    backgroundColor: "rgba(33, 150, 243, 0.2)",
+                    color: "#2196f3",
+                    border: "1px solid #2196f3",
+                  }}
+                />
+              </Box>
+            </Box>
+
+            {/* Problem Description */}
+            <Box sx={{ p: 3, flex: 1 }}>
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="body1" sx={{ 
+                  color: "#ffffff", 
+                  lineHeight: 1.7,
+                  mb: 2
+                }}>
+                  {question.description}
+                </Typography>
+              </Box>
+
+              {/* Example Section */}
+              <Box sx={{ 
+                backgroundColor: "#2d2d2d", 
+                borderRadius: 2, 
+                p: 2, 
+                mb: 3,
+                border: "1px solid #3a3a3a"
+              }}>
+                <Typography variant="subtitle1" sx={{ 
+                  color: "#ffffff", 
+                  fontWeight: "bold", 
+                  mb: 1 
+                }}>
+                  Example:
+                </Typography>
+                <Box sx={{ 
+                  backgroundColor: "#1a1a1a", 
+                  borderRadius: 1, 
+                  p: 2,
+                  fontFamily: "monospace",
+                  fontSize: "0.9rem",
+                  color: "#cccccc"
+                }}>
+                  <Typography component="pre" sx={{ margin: 0, whiteSpace: "pre-wrap" }}>
+                    {`Input: nums = [2,7,11,15], target = 9
+Output: [0,1]
+Explanation: Because nums[0] + nums[1] == 9, we return [0, 1].`}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Constraints */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle1" sx={{ 
+                  color: "#ffffff", 
+                  fontWeight: "bold", 
+                  mb: 1 
+                }}>
+                  Constraints:
+                </Typography>
+                <Box sx={{ pl: 2 }}>
+                  <Typography variant="body2" sx={{ color: "#cccccc", mb: 0.5 }}>
+                    • 2 ≤ nums.length ≤ 10⁴
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "#cccccc", mb: 0.5 }}>
+                    • -10⁹ ≤ nums[i] ≤ 10⁹
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "#cccccc" }}>
+                    • -10⁹ ≤ target ≤ 10⁹
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Question Grid */}
+              {questions.length > 1 && (
+                <Box sx={{ 
+                  backgroundColor: "#2d2d2d", 
+                  borderRadius: 2, 
+                  p: 2,
+                  border: "1px solid #3a3a3a"
+                }}>
+                  <Typography variant="subtitle1" sx={{ 
+                    color: "#ffffff", 
+                    fontWeight: "bold", 
+                    mb: 2 
+                  }}>
+                    Questions ({questions.length})
+                  </Typography>
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                    {questions.map((_, index) => (
+                      <Box
+                        key={index}
+                        onClick={() => {
+                          setSavedCodes(prev => ({
+                            ...prev,
+                            [currentQuestionIndex]: code
+                          }));
+                          pauseTimer(currentQuestionIndex);
+                          
+                          setCurrentQuestionIndex(index);
+                          setQuestion(questions[index]);
+                          setCode(savedCodes[index] || "// Write your code here...");
+                          setOutput("");
+                          
+                          if (questions[index] && questions[index].duration && questionStates[index] !== 'completed') {
+                            const savedTime = questionTimers[index];
+                            if (savedTime !== undefined && savedTime > 0) {
+                              setTimeRemaining(savedTime);
+                              setIsTimerActive(true);
+                            } else if (savedTime === undefined) {
+                              startTimer(questions[index].duration, index);
+                            }
+                          }
+                        }}
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: "8px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "0.9rem",
+                          fontWeight: "bold",
+                          cursor: "pointer",
+                          backgroundColor: index === currentQuestionIndex
+                            ? "#ffa116"
+                            : questionStates[index] === 'completed'
+                            ? "#00c851"
+                            : questionTimers[index] !== undefined
+                            ? "#2196f3"
+                            : "#3a3a3a",
+                          color: index === currentQuestionIndex || questionStates[index] === 'completed'
+                            ? "#000000"
+                            : "#ffffff",
+                          border: index === currentQuestionIndex ? "2px solid #e6900e" : "none",
+                          "&:hover": {
+                            transform: "scale(1.05)",
+                            backgroundColor: index === currentQuestionIndex
+                              ? "#e6900e"
+                              : questionStates[index] === 'completed'
+                              ? "#00a844"
+                              : questionTimers[index] !== undefined
+                              ? "#1976d2"
+                              : "#4a4a4a",
+                          },
+                          transition: "all 0.2s ease",
+                        }}
+                      >
+                        {questionStates[index] === 'completed' ? '✓' : index + 1}
+                      </Box>
+                    ))}
+                  </Box>
+                  <Box sx={{ mt: 2, display: "flex", gap: 3, fontSize: "0.8rem" }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <Box sx={{ width: 12, height: 12, backgroundColor: "#ffa116", borderRadius: 1 }} />
+                      <Typography variant="caption" sx={{ color: "#cccccc" }}>Current</Typography>
+                    </Box>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <Box sx={{ width: 12, height: 12, backgroundColor: "#00c851", borderRadius: 1 }} />
+                      <Typography variant="caption" sx={{ color: "#cccccc" }}>Solved</Typography>
+                    </Box>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <Box sx={{ width: 12, height: 12, backgroundColor: "#2196f3", borderRadius: 1 }} />
+                      <Typography variant="caption" sx={{ color: "#cccccc" }}>Attempted</Typography>
+                    </Box>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <Box sx={{ width: 12, height: 12, backgroundColor: "#3a3a3a", borderRadius: 1 }} />
+                      <Typography variant="caption" sx={{ color: "#cccccc" }}>Todo</Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          </Box>
+
+          {/* Right Panel - Code Editor and Output */}
+          <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            {/* Editor Header */}
+            <Box
+              sx={{
+                height: "50px",
+                backgroundColor: "#2d2d2d",
+                borderBottom: "1px solid #3a3a3a",
+                display: "flex",
+                alignItems: "center",
+                px: 2,
+                gap: 2,
+              }}
+            >
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <Select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  sx={{
+                    color: "#ffffff",
+                    "& .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "#3a3a3a",
+                    },
+                    "&:hover .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "#ffa116",
+                    },
+                    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "#ffa116",
+                    },
+                    "& .MuiSelect-icon": {
+                      color: "#ffffff",
+                    },
+                  }}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        backgroundColor: "#2d2d2d",
+                        "& .MuiMenuItem-root": {
+                          color: "#ffffff",
+                          "&:hover": {
+                            backgroundColor: "#3a3a3a",
+                          },
+                        },
+                      },
+                    },
+                  }}
+                >
+                  <MenuItem value="javascript">JavaScript</MenuItem>
+                  <MenuItem value="python">Python</MenuItem>
+                  <MenuItem value="java">Java</MenuItem>
+                </Select>
+              </FormControl>
+
+              <Box sx={{ flex: 1 }} />
+
+              <IconButton
+                onClick={toggleFullscreen}
+                sx={{
+                  color: "#ffffff",
+                  "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.1)" },
+                }}
+              >
+                {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+              </IconButton>
+            </Box>
+
+            {/* Code Editor */}
+            <Box 
+              sx={{ 
+                flex: 1, 
+                position: "relative",
+                ...(isFullscreen && {
+                  position: "fixed",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: 9999,
+                }),
+              }}
+            >
+              <Editor
+                height="100%"
+                language={language}
+                value={code}
+                onChange={handleCodeChange}
+                theme="vs-dark"
+                options={{
+                  fontSize: 14,
+                  fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
+                  lineNumbers: "on",
+                  minimap: { enabled: false },
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                  wordWrap: "on",
+                  folding: true,
+                  bracketMatching: "always",
+                  suggestOnTriggerCharacters: true,
+                  parameterHints: { enabled: true },
+                  autoIndent: "full",
+                  formatOnPaste: true,
+                  formatOnType: true,
+                  tabSize: 2,
+                  insertSpaces: true,
+                }}
+              />
+            </Box>
+
+            {/* Output Panel */}
+            <Box
+              sx={{
+                height: "200px",
+                backgroundColor: "#1a1a1a",
+                borderTop: "1px solid #3a3a3a",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              {/* Output Header */}
+              <Box
+                sx={{
+                  height: "40px",
+                  backgroundColor: "#2d2d2d",
+                  borderBottom: "1px solid #3a3a3a",
+                  display: "flex",
+                  alignItems: "center",
+                  px: 2,
+                }}
+              >
+                <TerminalIcon sx={{ color: "#00c851", mr: 1, fontSize: 18 }} />
+                <Typography variant="subtitle2" sx={{ color: "#ffffff", fontWeight: "bold" }}>
+                  Console
+                </Typography>
+                {codeStats.lastRunTime && (
+                  <Typography variant="caption" sx={{ color: "#666", ml: 2 }}>
+                    Last run: {formatTime(codeStats.lastRunTime)}
+                  </Typography>
+                )}
+              </Box>
+
+              {/* Output Content */}
+              <Box
+                sx={{
+                  flex: 1,
+                  p: 2,
+                  overflow: "auto",
+                  fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
+                  fontSize: "13px",
+                  backgroundColor: "#1a1a1a",
+                  color: "#ffffff",
+                }}
+              >
+                <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordWrap: "break-word" }}>
+                  {output || `Welcome to ${language.toUpperCase()} Console!\n\n> Ready to execute your code...\n> Click "Run" to test your solution.\n> Output will appear here.`}
+                </pre>
+
+                {isRunning && (
+                  <Box
+                    sx={{
+                      mt: 2,
+                      p: 1,
+                      backgroundColor: "#2d2d2d",
+                      borderRadius: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                    }}
+                  >
+                    <LinearProgress
+                      sx={{
+                        flex: 1,
+                        height: 4,
+                        backgroundColor: "#3a3a3a",
+                        "& .MuiLinearProgress-bar": {
+                          backgroundColor: "#00c851",
+                        },
+                      }}
+                    />
+                    <Typography variant="caption" sx={{ color: "#00c851" }}>
+                      Running...
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      )}
+
+      {/* Draggable Webcam with Hide/Show functionality */}
+      {!isMobile && isWebcamVisible && (
+        <Box
+          onMouseDown={handleMouseDown}
+          sx={{
+            position: "fixed",
+            left: webcamPosition.x,
+            top: webcamPosition.y,
+            width: 200,
+            height: 150,
+            border: "2px solid #ffa116",
+            borderRadius: 2,
+            overflow: "hidden",
+            zIndex: 1000,
+            backgroundColor: "#2d2d2d",
+            cursor: isDragging ? "grabbing" : "grab",
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
+            transition: isDragging ? "none" : "all 0.2s ease",
+            "&:hover": {
+              border: "2px solid #e6900e",
+              boxShadow: "0 6px 25px rgba(255, 161, 22, 0.4)",
+            },
+          }}
+        >
+          {/* Drag Handle */}
+          <Box
+            sx={{
+              position: "absolute",
+              top: 4,
+              left: 4,
+              right: 4,
+              height: 20,
+              backgroundColor: "rgba(0, 0, 0, 0.7)",
+              borderRadius: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              px: 1,
+              zIndex: 1001,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <DragIndicatorIcon sx={{ color: "#ffa116", fontSize: 14 }} />
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "#ffffff",
+                  fontSize: "0.65rem",
+                  fontWeight: "bold",
+                }}
+              >
+                Camera
+              </Typography>
+            </Box>
+            
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleWebcamVisibility();
+              }}
+              sx={{
+                color: "#ffffff",
+                padding: "2px",
+                "&:hover": {
+                  backgroundColor: "rgba(255, 255, 255, 0.1)",
+                },
+              }}
+            >
+              {/* <CloseIcon sx={{ fontSize: 12 }} /> */}
+            </IconButton>
+          </Box>
+
+          <WebCam
+            cheatingLog={cheatingLog}
+            updateCheatingLog={updateCheatingLog}
+          />
+          
+          <Typography
+            variant="caption"
+            sx={{
+              position: "absolute",
+              bottom: 4,
+              left: 8,
+              color: "#ffffff",
+              backgroundColor: "rgba(0, 0, 0, 0.7)",
+              px: 1,
+              borderRadius: 1,
+              fontSize: "0.7rem",
+            }}
+          >
+            🔒 Proctored
+          </Typography>
+
+          {/* Recording indicator */}
+          <Box
+            sx={{
+              position: "absolute",
+              top: 4,
+              right: 4,
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              backgroundColor: "#ff4444",
+              animation: "pulse 2s infinite",
+              "@keyframes pulse": {
+                "0%": { opacity: 1 },
+                "50%": { opacity: 0.5 },
+                "100%": { opacity: 1 },
               },
             }}
           />
         </Box>
-      </Fade>
-
-      {/* Question Navigation Stepper */}
-      {questions.length > 1 && (
-        <Fade in={showContent} timeout={600}>
-          <Card sx={{ mb: 3, borderRadius: 3, boxShadow: 4 }}>
-            <CardContent sx={{ py: 2 }}>
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 'bold' }}>
-                Coding Questions Progress
-              </Typography>
-              <Stepper activeStep={currentQuestionIndex} alternativeLabel>
-                {questions.map((q, index) => (
-                  <Step key={index}>
-                    <StepLabel 
-                      sx={{
-                        cursor: 'pointer',
-                        '& .MuiStepLabel-label': {
-                          fontSize: '0.875rem',
-                          fontWeight: currentQuestionIndex === index ? 'bold' : 'normal'
-                        }
-                      }}
-                      onClick={() => {
-                        // Save current code before switching
-                        setSavedCodes(prev => ({
-                          ...prev,
-                          [currentQuestionIndex]: code
-                        }));
-                        
-                        setCurrentQuestionIndex(index);
-                        setQuestion(questions[index]);
-                        setCode(savedCodes[index] || "// Write your code here...");
-                        setOutput("");
-                      }}
-                    >
-                      Question {index + 1}
-                    </StepLabel>
-                  </Step>
-                ))}
-              </Stepper>
-            </CardContent>
-          </Card>
-        </Fade>
       )}
 
-      {/* Enhanced Header Section */}
-      <Slide direction="down" in={showContent} timeout={800}>
-        <Box sx={{ mb: 2 }}>
-          {/* Progress Stepper */}
-
-          <Grid container spacing={3} alignItems="center">
-            {/* Main Header */}
-            <Grid item xs={12} lg={isMobile ? 12 : 7}>
-              <Card
-                sx={{
-                  background:
-                    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                  color: "white",
-                  borderRadius: 4,
-                  boxShadow: 6,
-                  position: "relative",
-                  overflow: "hidden",
-                }}
-              >
-                {/* Animated Background Elements */}
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background:
-                      "linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%)",
-                    animation: "shimmer 3s infinite",
-                    "@keyframes shimmer": {
-                      "0%": { transform: "translateX(-100%)" },
-                      "100%": { transform: "translateX(100%)" },
-                    },
-                  }}
-                />
-
-                <CardContent
-                  sx={{
-                    textAlign: "center",
-                    py: 4,
-                    position: "relative",
-                    zIndex: 1,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      mb: 3,
-                    }}
-                  >
-                    <Avatar
-                      sx={{
-                        bgcolor: "rgba(255,255,255,0.2)",
-                        width: 60,
-                        height: 60,
-                        mr: 3,
-                        boxShadow: 3,
-                      }}
-                    >
-                      <CodeIcon sx={{ fontSize: 35 }} />
-                    </Avatar>
-                    <Box>
-                      <Typography
-                        variant="h3"
-                        sx={{ fontWeight: "bold", mb: 1 }}
-                      >
-                        Coding Assessment
-                      </Typography>
-                      <Typography variant="h6" sx={{ opacity: 0.9 }}>
-                        Write, test, and submit your solution
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  {question && (
-                    <Stack
-                      direction="row"
-                      spacing={2}
-                      justifyContent="center"
-                      flexWrap="wrap"
-                    >
-                      <Chip
-                        icon={<SchoolIcon />}
-                        label="Live Coding"
-                        sx={{
-                          backgroundColor: "rgba(255,255,255,0.25)",
-                          color: "white",
-                          fontSize: "1rem",
-                          py: 2,
-                          px: 3,
-                          fontWeight: "bold",
-                          backdropFilter: "blur(10px)",
-                        }}
-                      />
-                      <Chip
-                        icon={<SecurityIcon />}
-                        label="Proctored"
-                        sx={{
-                          backgroundColor: "rgba(255,255,255,0.25)",
-                          color: "white",
-                          fontSize: "1rem",
-                          py: 2,
-                          px: 3,
-                          fontWeight: "bold",
-                          backdropFilter: "blur(10px)",
-                        }}
-                      />
-                      <Chip
-                        label={`${getLanguageIcon(
-                          language
-                        )} ${language.toUpperCase()}`}
-                        sx={{
-                          backgroundColor: "rgba(255,255,255,0.25)",
-                          color: "white",
-                          fontSize: "1rem",
-                          py: 2,
-                          px: 3,
-                          fontWeight: "bold",
-                          backdropFilter: "blur(10px)",
-                        }}
-                      />
-                    </Stack>
-                  )}
-                </CardContent>
-              </Card>
-            </Grid>
-
-            {/* Stats Card */}
-            <Grid item xs={12} lg={3}>
-              <Card
-                sx={{
-                  borderRadius: 4,
-                  boxShadow: 4,
-                  background:
-                    "linear-gradient(135deg, #43cea2 0%, #185a9d 100%)",
-                  color: "white",
-                }}
-              >
-                <CardContent sx={{ p: 3 }}>
-                  <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                    <TrendingUpIcon sx={{ mr: 1, fontSize: 24 }} />
-                    <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-                      Session Stats
-                    </Typography>
-                  </Box>
-                  <Stack spacing={1}>
-                    <Box
-                      sx={{ display: "flex", justifyContent: "space-between" }}
-                    >
-                      <Typography variant="body2">Lines:</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-                        {codeStats.lines}
-                      </Typography>
-                    </Box>
-                    <Box
-                      sx={{ display: "flex", justifyContent: "space-between" }}
-                    >
-                      <Typography variant="body2">Characters:</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-                        {codeStats.characters}
-                      </Typography>
-                    </Box>
-                    <Box
-                      sx={{ display: "flex", justifyContent: "space-between" }}
-                    >
-                      <Typography variant="body2">Runs:</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-                        {codeStats.runs}
-                      </Typography>
-                    </Box>
-                    <Box
-                      sx={{ display: "flex", justifyContent: "space-between" }}
-                    >
-                      <Typography variant="body2">Keystrokes:</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-                        {sessionStats.keystrokes}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            {/* Small Webcam Monitor - Top Middle */}
-            {!isMobile && (
-              <Grid item xs={12} lg={2}>
-                <Box
-                  sx={{
-                    border: "1px solid #ccc",
-                    borderRadius: 2,
-                    width: "100%",
-                    maxWidth: 200,
-                    height: 150,
-                    overflow: "hidden",
-                    margin: "0 auto",
-                  }}
-                >
-                  <WebCam
-                    cheatingLog={cheatingLog}
-                    updateCheatingLog={updateCheatingLog}
-                  />
-                </Box>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    display: "block",
-                    textAlign: "center",
-                    mt: 1,
-                    fontSize: "0.65rem",
-                    opacity: 0.8,
-                  }}
-                >
-                  🔒 Secured
-                </Typography>
-              </Grid>
-            )}
-
-             {/* <Grid item xs={12} md={2} lg={2}>
-                          <Card
-                            sx={{
-                              borderRadius: 4,
-                              boxShadow: 4,
-                              background:
-                                "linear-gradient(135deg, #ff9a56 0%, #ff6b6b 100%)",
-                              color: "white",
-                              height: "fit-content",
-                              position: "sticky",
-                              top: 20,
-                            }}
-                          >
-                            <CardContent sx={{ p: 2 }}>
-                              <Box
-                                sx={{
-                                  backgroundColor: "rgba(255, 255, 255, 0.2)",
-                                  borderRadius: 3,
-                                  p: 1,
-                                  backdropFilter: "blur(10px)",
-                                  minHeight: "100px", // Fixed height
-                                }}
-                              >
-                                <NumberOfQuestions
-                                  questionLength={questions.length}
-                                  submitTest={
-                                    isMcqCompleted
-                                      ? handleTestSubmission
-                                      : handleMcqCompletion
-                                  }
-                                  examDurationInSeconds={examDurationInSeconds}
-                                />
-                              </Box>
-                            </CardContent>
-                          </Card>
-                        </Grid> */}
-          </Grid>
-        </Box>
-      </Slide>
-
-      {isLoading ? (
-        <Zoom in={true} timeout={1000}>
-          <Card sx={{ textAlign: "center", p: 4, borderRadius: 3 }}>
-            <CodeIcon sx={{ fontSize: 80, color: "primary.main", mb: 2 }} />
-            <Typography variant="h5" gutterBottom>
-              Loading Question...
-            </Typography>
-            <LinearProgress sx={{ mt: 2, borderRadius: 2 }} />
-          </Card>
-        </Zoom>
-      ) : !question ? (
-        <Fade in={true} timeout={1000}>
-          <Alert severity="warning" sx={{ borderRadius: 3 }}>
-            <Typography variant="h6">
-              No coding question found for this exam.
-            </Typography>
-            <Typography>Please contact your teacher for assistance.</Typography>
-          </Alert>
-        </Fade>
-      ) : (
-        <Fade in={showContent} timeout={1200}>
-          <Box>
-            {/* Main Content Area */}
-            <Grid container spacing={3}>
-              {/* Left Side - Enhanced Problem Statement */}
-              <Grid item xs={12} lg={isMobile ? 12 : 3}>
-                <Card
-                  sx={{
-                    borderRadius: 4,
-                    boxShadow: 6,
-                    height: "fit-content",
-                    position: "sticky",
-                    top: 20,
-                    background:
-                      "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-                    color: "white",
-                  }}
-                >
-                  <CardContent sx={{ p: 3 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-                      <Avatar
-                        sx={{
-                          bgcolor: "rgba(255,255,255,0.2)",
-                          mr: 2,
-                          width: 50,
-                          height: 50,
-                          boxShadow: 3,
-                        }}
-                      >
-                        <AssignmentIcon sx={{ fontSize: 28 }} />
-                      </Avatar>
-                      <Box>
-                        <Typography variant="h5" sx={{ fontWeight: "bold" }}>
-                          Problem
-                        </Typography>
-                        <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                          Challenge
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Card
-                      sx={{
-                        mb: 3,
-                        borderRadius: 3,
-                        bgcolor: "rgba(255,255,255,0.95)",
-                        color: "text.primary",
-                      }}
-                    >
-                      <CardContent sx={{ p: 2 }}>
-                        <Typography
-                          variant="h6"
-                          sx={{
-                            fontWeight: 600,
-                            mb: 2,
-                            color: "primary.main",
-                          }}
-                        >
-                          {question.question}
-                        </Typography>
-
-                        <Divider sx={{ my: 2 }} />
-
-                        <Box sx={{ mb: 2 }}>
-                          <Typography
-                            variant="subtitle1"
-                            sx={{
-                              fontWeight: "bold",
-                              mb: 1,
-                              color: "text.primary",
-                              display: "flex",
-                              alignItems: "center",
-                            }}
-                          >
-                            <LightbulbIcon
-                              sx={{ mr: 1, color: "warning.main" }}
-                            />
-                            Description:
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              lineHeight: 1.7,
-                              color: "text.secondary",
-                              backgroundColor: "grey.50",
-                              p: 2,
-                              borderRadius: 2,
-                              border: "1px solid",
-                              borderColor: "grey.200",
-                            }}
-                          >
-                            {question.description}
-                          </Typography>
-                        </Box>
-                      </CardContent>
-                    </Card>
-
-                    {/* Question Navigation */}
-                    {questions.length > 1 && (
-                      <Card
-                        sx={{
-                          mb: 3,
-                          borderRadius: 3,
-                          bgcolor: "rgba(255,255,255,0.1)",
-                          border: "1px solid rgba(255,255,255,0.2)",
-                        }}
-                      >
-                        <CardContent sx={{ p: 2 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="subtitle1" sx={{ color: 'white', fontWeight: 'bold' }}>
-                              Question {currentQuestionIndex + 1} of {questions.length}
-                            </Typography>
-                            
-                            <Box sx={{ display: 'flex', gap: 1 }}>
-                              <Button
-                                variant="contained"
-                                size="small"
-                                startIcon={<NavigateBeforeIcon />}
-                                onClick={goToPreviousQuestion}
-                                disabled={currentQuestionIndex === 0}
-                                sx={{
-                                  bgcolor: 'rgba(255,255,255,0.2)',
-                                  color: 'white',
-                                  '&:hover': {
-                                    bgcolor: 'rgba(255,255,255,0.3)',
-                                  },
-                                  '&:disabled': {
-                                    bgcolor: 'rgba(255,255,255,0.1)',
-                                    color: 'rgba(255,255,255,0.5)',
-                                  },
-                                }}
-                              >
-                                Previous
-                              </Button>
-                              
-                              <Button
-                                variant="contained"
-                                size="small"
-                                endIcon={<NavigateNextIcon />}
-                                onClick={goToNextQuestion}
-                                disabled={currentQuestionIndex === questions.length - 1}
-                                sx={{
-                                  bgcolor: 'rgba(255,255,255,0.2)',
-                                  color: 'white',
-                                  '&:hover': {
-                                    bgcolor: 'rgba(255,255,255,0.3)',
-                                  },
-                                  '&:disabled': {
-                                    bgcolor: 'rgba(255,255,255,0.1)',
-                                    color: 'rgba(255,255,255,0.5)',
-                                  },
-                                }}
-                              >
-                                Next
-                              </Button>
-                            </Box>
-                          </Box>
-                          
-                          {/* Question Progress Indicator */}
-                          <Box sx={{ mt: 2 }}>
-                            <LinearProgress
-                              variant="determinate"
-                              value={(currentQuestionIndex + 1) / questions.length * 100}
-                              sx={{
-                                height: 6,
-                                borderRadius: 3,
-                                bgcolor: 'rgba(255,255,255,0.2)',
-                                '& .MuiLinearProgress-bar': {
-                                  bgcolor: 'white',
-                                  borderRadius: 3,
-                                },
-                              }}
-                            />
-                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', mt: 0.5, display: 'block' }}>
-                              Progress: {Math.round((currentQuestionIndex + 1) / questions.length * 100)}%
-                            </Typography>
-                          </Box>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {/* Enhanced Problem Info */}
-                    <Stack spacing={2}>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          backgroundColor: "rgba(255,255,255,0.2)",
-                          borderRadius: 2,
-                          p: 1.5,
-                        }}
-                      >
-                        <StarIcon sx={{ color: "yellow", mr: 1 }} />
-                        <Box>
-                          <Typography
-                            variant="caption"
-                            sx={{ display: "block", fontWeight: "bold" }}
-                          >
-                            Difficulty
-                          </Typography>
-                          <Chip
-                            label="Medium"
-                            size="small"
-                            sx={{
-                              backgroundColor: "rgba(255,255,255,0.9)",
-                              color: "warning.main",
-                              fontWeight: "bold",
-                            }}
-                          />
-                        </Box>
-                      </Box>
-
-                      <Alert
-                        severity="info"
-                        sx={{
-                          backgroundColor: "rgba(255,255,255,0.2)",
-                          color: "white",
-                          "& .MuiAlert-icon": { color: "white" },
-                          border: "none",
-                        }}
-                      >
-                        <Typography
-                          variant="caption"
-                          sx={{ fontWeight: "bold" }}
-                        >
-                          💡 Pro Tip: Test your code frequently and consider
-                          edge cases
-                        </Typography>
-                      </Alert>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              {/* Right Side - Code Editor and Output */}
-              <Grid item xs={12} lg={isMobile ? 12 : 9}>
-                <Grid container spacing={2}>
-                  {/* Code Editor Section */}
-                  <Grid item xs={12} md={isMobile ? 12 : 8}>
-                    <Card
-                      sx={{
-                        borderRadius: 3,
-                        boxShadow: 3,
-                        height: isMobile ? "auto" : "650px",
-                      }}
-                    >
-                      <CardContent
-                        sx={{
-                          height: "100%",
-                          display: "flex",
-                          flexDirection: "column",
-                          p: 3,
-                        }}
-                      >
-                        {/* Editor Header */}
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            mb: 2,
-                            flexWrap: "wrap",
-                            gap: 2,
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 2,
-                            }}
-                          >
-                            <CodeIcon sx={{ color: "primary.main" }} />
-                            <Typography
-                              variant="h6"
-                              sx={{ fontWeight: "bold" }}
-                            >
-                              Code Editor
-                            </Typography>
-                          </Box>
-
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 2,
-                            }}
-                          >
-                            <FormControl sx={{ minWidth: 140 }}>
-                              <InputLabel>Language</InputLabel>
-                              <Select
-                                value={language}
-                                label="Language"
-                                onChange={(e) => setLanguage(e.target.value)}
-                                sx={{ borderRadius: 2 }}
-                              >
-                                <MenuItem value="javascript">
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 1,
-                                    }}
-                                  >
-                                    🚀 JavaScript
-                                  </Box>
-                                </MenuItem>
-                                <MenuItem value="python">
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 1,
-                                    }}
-                                  >
-                                    🐍 Python
-                                  </Box>
-                                </MenuItem>
-                                <MenuItem value="java">
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 1,
-                                    }}
-                                  >
-                                    ☕ Java
-                                  </Box>
-                                </MenuItem>
-                              </Select>
-                            </FormControl>
-
-                            <Tooltip
-                              title={
-                                isFullscreen ? "Exit Fullscreen" : "Fullscreen"
-                              }
-                            >
-                              <IconButton
-                                onClick={toggleFullscreen}
-                                sx={{
-                                  backgroundColor: "primary.main",
-                                  color: "white",
-                                  "&:hover": {
-                                    backgroundColor: "primary.dark",
-                                  },
-                                }}
-                              >
-                                {isFullscreen ? (
-                                  <FullscreenExitIcon />
-                                ) : (
-                                  <FullscreenIcon />
-                                )}
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        </Box>
-
-                        {/* Code Editor */}
-                        <Box
-                          sx={{
-                            flex: 1,
-                            minHeight: isMobile ? "400px" : "500px",
-                            border: "2px solid",
-                            borderColor: "divider",
-                            borderRadius: 2,
-                            overflow: "hidden",
-                            ...(isFullscreen && {
-                              position: "fixed",
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              zIndex: 9999,
-                              minHeight: "100vh",
-                            }),
-                          }}
-                        >
-                          <Editor
-                            height="100%"
-                            language={language}
-                            value={code}
-                            onChange={handleCodeChange}
-                            theme="vs-dark"
-                            options={{
-                              minimap: { enabled: !isMobile },
-                              fontSize: isMobile ? 12 : 14,
-                              scrollBeyondLastLine: false,
-                              automaticLayout: true,
-                              wordWrap: "on",
-                              lineNumbers: "on",
-                              folding: true,
-                              bracketMatching: "always",
-                              suggestOnTriggerCharacters: true,
-                              parameterHints: { enabled: true },
-                              autoIndent: "full",
-                              formatOnPaste: true,
-                              formatOnType: true,
-                            }}
-                          />
-                        </Box>
-
-                        {/* Action Buttons */}
-                        <Box
-                          sx={{
-                            mt: 3,
-                            display: "flex",
-                            gap: 2,
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <Button
-                            variant="contained"
-                            onClick={runCode}
-                            disabled={isRunning}
-                            startIcon={
-                              isRunning ? (
-                                <LinearProgress size={20} />
-                              ) : (
-                                <PlayArrowIcon />
-                              )
-                            }
-                            sx={{
-                              minWidth: 140,
-                              py: 1.5,
-                              borderRadius: 3,
-                              background:
-                                "linear-gradient(45deg, #4CAF50 30%, #45a049 90%)",
-                              "&:hover": {
-                                background:
-                                  "linear-gradient(45deg, #45a049 30%, #4CAF50 90%)",
-                                transform: "translateY(-2px)",
-                              },
-                            }}
-                          >
-                            {isRunning ? "Running..." : "Run Code"}
-                          </Button>
-
-                          <Button
-                            variant="contained"
-                            onClick={handleSubmit}
-                            disabled={isSubmitting}
-                            startIcon={
-                              isSubmitting ? (
-                                <LinearProgress size={20} />
-                              ) : (
-                                <SendIcon />
-                              )
-                            }
-                            sx={{
-                              minWidth: 140,
-                              py: 1.5,
-                              borderRadius: 3,
-                              background:
-                                "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
-                              "&:hover": {
-                                background:
-                                  "linear-gradient(45deg, #21CBF3 30%, #2196F3 90%)",
-                                transform: "translateY(-2px)",
-                              },
-                            }}
-                          >
-                            {isSubmitting ? "Submitting..." : "Submit Test"}
-                          </Button>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-
-                  {/* Enhanced Output Console */}
-                  <Grid item xs={12} md={isMobile ? 12 : 4}>
-                    <Card
-                      sx={{
-                        borderRadius: 4,
-                        boxShadow: 6,
-                        height: "650px",
-                        background:
-                          "linear-gradient(135deg, #2c3e50 0%, #34495e 100%)",
-                        color: "white",
-                      }}
-                    >
-                      <CardContent
-                        sx={{
-                          height: "100%",
-                          display: "flex",
-                          flexDirection: "column",
-                          p: 3,
-                        }}
-                      >
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", mb: 2 }}
-                        >
-                          <Avatar
-                            sx={{
-                              bgcolor: "success.main",
-                              mr: 2,
-                              width: 35,
-                              height: 35,
-                            }}
-                          >
-                            <TerminalIcon sx={{ fontSize: 20 }} />
-                          </Avatar>
-                          <Box>
-                            <Typography
-                              variant="h6"
-                              sx={{
-                                fontWeight: "bold",
-                                color: "success.light",
-                              }}
-                            >
-                              Output Console
-                            </Typography>
-                            <Typography
-                              variant="caption"
-                              sx={{ color: "grey.300" }}
-                            >
-                              {codeStats.lastRunTime
-                                ? `Last run: ${formatTime(
-                                    codeStats.lastRunTime
-                                  )}`
-                                : "Ready to execute"}
-                            </Typography>
-                          </Box>
-                        </Box>
-
-                        <Box
-                          sx={{
-                            backgroundColor: "#1a1a1a",
-                            color: "#00ff00",
-                            p: 3,
-                            borderRadius: 3,
-                            flex: 1,
-                            overflow: "auto",
-                            fontFamily: '"Fira Code", "Consolas", monospace',
-                            fontSize: "13px",
-                            lineHeight: 1.5,
-                            border: "2px solid #333",
-                            position: "relative",
-                            "&::-webkit-scrollbar": {
-                              width: "8px",
-                            },
-                            "&::-webkit-scrollbar-track": {
-                              background: "#2a2a2a",
-                            },
-                            "&::-webkit-scrollbar-thumb": {
-                              background: "#555",
-                              borderRadius: "4px",
-                            },
-                            "&::-webkit-scrollbar-thumb:hover": {
-                              background: "#777",
-                            },
-                          }}
-                        >
-                          {/* Terminal Header */}
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              mb: 2,
-                              pb: 1,
-                              borderBottom: "1px solid #333",
-                            }}
-                          >
-                            <Box
-                              sx={{
-                                display: "flex",
-                                gap: 1,
-                                mr: 2,
-                              }}
-                            >
-                              <Box
-                                sx={{
-                                  width: 12,
-                                  height: 12,
-                                  borderRadius: "50%",
-                                  bgcolor: "#ff5f56",
-                                }}
-                              />
-                              <Box
-                                sx={{
-                                  width: 12,
-                                  height: 12,
-                                  borderRadius: "50%",
-                                  bgcolor: "#ffbd2e",
-                                }}
-                              />
-                              <Box
-                                sx={{
-                                  width: 12,
-                                  height: 12,
-                                  borderRadius: "50%",
-                                  bgcolor: "#27ca3f",
-                                }}
-                              />
-                            </Box>
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                color: "#888",
-                                fontFamily: "monospace",
-                              }}
-                            >
-                              {language}@examapp:~$
-                            </Typography>
-                          </Box>
-
-                          <pre
-                            style={{
-                              margin: 0,
-                              whiteSpace: "pre-wrap",
-                              wordWrap: "break-word",
-                            }}
-                          >
-                            {output ||
-                              `Welcome to ${language.toUpperCase()} Console!\n\n> Ready to execute your code...\n> Use the "Run Code" button to test your solution.\n> Output will appear here in real-time.`}
-                          </pre>
-
-                          {isRunning && (
-                            <Box
-                              sx={{
-                                position: "absolute",
-                                bottom: 20,
-                                right: 20,
-                                display: "flex",
-                                alignItems: "center",
-                                backgroundColor: "rgba(0,0,0,0.8)",
-                                borderRadius: 2,
-                                p: 1,
-                              }}
-                            >
-                              <LinearProgress
-                                sx={{
-                                  width: 80,
-                                  mr: 1,
-                                  "& .MuiLinearProgress-bar": {
-                                    backgroundColor: "#00ff00",
-                                  },
-                                }}
-                              />
-                              <Typography
-                                variant="caption"
-                                sx={{ color: "#00ff00" }}
-                              >
-                                Running...
-                              </Typography>
-                            </Box>
-                          )}
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                </Grid>
-              </Grid>
-            </Grid>
-          </Box>
-        </Fade>
-      )}
-
-      {/* Floating Action Button for Scroll to Top */}
-      <Fade in={true}>
+      {/* Floating webcam preview when hidden */}
+      {!isMobile && !isWebcamVisible && (
         <Fab
-          color="primary"
           size="small"
-          onClick={scrollToTop}
+          onClick={toggleWebcamVisibility}
           sx={{
             position: "fixed",
-            bottom: 16,
+            bottom: 80,
             right: 16,
             zIndex: 1000,
-            background: "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
+            backgroundColor: "#ffa116",
+            color: "#000000",
             "&:hover": {
+              backgroundColor: "#e6900e",
               transform: "scale(1.1)",
             },
+            transition: "all 0.2s ease",
           }}
         >
-          <KeyboardArrowUpIcon />
+          <VideoCallIcon />
         </Fab>
-      </Fade>
+      )}
     </Box>
   );
 }

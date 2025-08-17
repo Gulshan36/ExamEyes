@@ -101,9 +101,9 @@ const TestPage = () => {
   useEffect(() => {
     setSessionStats((prev) => ({
       ...prev,
-      questionsAnswered: Object.keys(answeredQuestions).length,
+      questionsAnswered: submittedAnswers.length,
     }));
-  }, [answeredQuestions]);
+  }, [submittedAnswers]);
 
   const [questions, setQuestions] = useState([]);
   const { data, isLoading } = useGetQuestionsQuery(examId);
@@ -118,6 +118,11 @@ const TestPage = () => {
 
   const handleAnswerSelected = (answer) => {
     setSubmittedAnswers((prev) => [...prev, answer]);
+    // Update session stats
+    setSessionStats((prev) => ({
+      ...prev,
+      questionsAnswered: prev.questionsAnswered + 1,
+    }));
   };
 
   const handleMcqCompletion = async () => {
@@ -395,7 +400,7 @@ const TestPage = () => {
                     >
                       <Typography variant="body2">Answered:</Typography>
                       <Chip
-                        label={`${sessionStats.questionsAnswered}/${data?.length || 0}`}
+                        label={`${sessionStats.questionsAnswered}/${questions.length}`}
                         size="small"
                         sx={{
                           backgroundColor: "rgba(255,255,255,0.9)",
@@ -411,7 +416,7 @@ const TestPage = () => {
                       <LinearProgress
                         variant="determinate"
                         value={
-                          (sessionStats.questionsAnswered / (data?.length || 1)) *
+                          (sessionStats.questionsAnswered / questions.length) *
                             100 || 0
                         }
                         sx={{

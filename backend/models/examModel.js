@@ -30,6 +30,10 @@ const examSchema = mongoose.Schema(
       description: {
         type: String,
       },
+      duration: {
+        type: Number,
+        default: 30, // Default 30 minutes
+      },
     },
     codingQuestions: [{
       question: {
@@ -39,6 +43,13 @@ const examSchema = mongoose.Schema(
       description: {
         type: String,
         required: true,
+      },
+      duration: {
+        type: Number,
+        required: true,
+        default: 30, // Default 30 minutes
+        min: 1,
+        max: 180, // Max 3 hours
       },
     }],
     // Define examId field with UUID generation
