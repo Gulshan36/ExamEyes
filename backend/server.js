@@ -43,7 +43,7 @@ app.use(cookieParser());
 
 // Configure CORS to allow credentials from your frontend origin
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: ['http://localhost:5173', 'https://exam-eyes.vercel.app/'],
   credentials: true,
 }));
 
