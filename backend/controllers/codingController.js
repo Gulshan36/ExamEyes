@@ -1,5 +1,6 @@
 import CodingQuestion from "../models/codingQuestionModel.js";
 import Exam from "../models/examModel.js";
+import Submission from "../models/submissionModel.js";
 import asyncHandler from "express-async-handler";
 
 // @desc    Submit a coding answer
@@ -21,29 +22,31 @@ const submitCodingAnswer = asyncHandler(async (req, res) => {
     throw new Error("Exam not found");
   }
 
-  // Ensure codingQuestion and submittedAnswer exist
-  if (!exam.codingQuestion) {
-    exam.codingQuestion = {};
+  // Persist coding answer to the student's latest submission of this exam
+  try {
+    const studentId = req.user._id;
+
+    // Find the most recent submission for this student and this exam
+    const submission = await Submission.findOne({ examId: exam._id, studentId })
+      .sort({ createdAt: -1 });
+
+    if (!submission) {
+      res.status(404);
+      throw new Error("No MCQ submission found to attach coding answer. Please complete MCQ section first.");
+    }
+
+    submission.codingAnswer = { code, language };
+    await submission.save();
+
+    res.status(200).json({
+      success: true,
+      data: { code, language },
+    });
+  } catch (error) {
+    console.error("Error saving coding answer to submission:", error);
+    res.status(500);
+    throw new Error(error.message || "Failed to save coding answer");
   }
-  if (!exam.codingQuestion.submittedAnswer) {
-    exam.codingQuestion.submittedAnswer = {};
-  }
-
-  // Update the embedded submittedAnswer
-  exam.codingQuestion.submittedAnswer = {
-    code,
-    language,
-    status: "submitted", // Set status to submitted
-    submissionDate: new Date(), // Add submission date
-  };
-
-  // Save the updated exam
-  const updatedExam = await exam.save();
-
-  res.status(200).json({
-    success: true,
-    data: updatedExam.codingQuestion, // Return the updated coding question part of the exam
-  });
 });
 
 // @desc    Create a new coding question
@@ -68,6 +71,20 @@ const createCodingQuestion = asyncHandler(async (req, res) => {
   }
 
   try {
+    // First check if the user has access to this exam
+    const exam = await Exam.findOne({ examId: examId.toString() });
+    
+    if (!exam) {
+      res.status(404);
+      throw new Error("Exam not found");
+    }
+
+    // Check if the user is authorized to create coding questions for this exam
+    if (exam.createdBy.toString() !== req.user._id.toString()) {
+      res.status(403);
+      throw new Error("Not authorized to create coding questions for this exam");
+    }
+
     // Check if a question already exists for this exam
     console.log("createCodingQuestion - Checking for existing question with examId:", examId.toString());
     const existingQuestion = await CodingQuestion.findOne({
@@ -107,9 +124,24 @@ const createCodingQuestion = asyncHandler(async (req, res) => {
 // @route   GET /api/coding/questions
 // @access  Private
 const getCodingQuestions = asyncHandler(async (req, res) => {
-  const questions = await CodingQuestion.find()
-    .select("-submittedAnswer") // Don't send other submissions
-    .populate("teacher", "name email");
+  // For teachers, only show coding questions for exams they created
+  let questions;
+  
+  if (req.user.role === 'teacher') {
+    // Get exams created by this teacher
+    const teacherExams = await Exam.find({ createdBy: req.user._id });
+    const teacherExamIds = teacherExams.map(exam => exam.examId);
+    
+    // Get coding questions only for those exams
+    questions = await CodingQuestion.find({ examId: { $in: teacherExamIds } })
+      .select("-submittedAnswer") // Don't send other submissions
+      .populate("teacher", "name email");
+  } else {
+    // For other roles (like admin), show all questions
+    questions = await CodingQuestion.find()
+      .select("-submittedAnswer") // Don't send other submissions
+      .populate("teacher", "name email");
+  }
 
   res.status(200).json({
     success: true,
@@ -130,6 +162,21 @@ const getCodingQuestion = asyncHandler(async (req, res) => {
   if (!question) {
     res.status(404);
     throw new Error("Question not found");
+  }
+
+  // For teachers, check if they own the exam this question belongs to
+  if (req.user.role === 'teacher') {
+    const exam = await Exam.findOne({ examId: question.examId });
+    
+    if (!exam) {
+      res.status(404);
+      throw new Error("Exam not found");
+    }
+
+    if (exam.createdBy.toString() !== req.user._id.toString()) {
+      res.status(403);
+      throw new Error("Not authorized to view this coding question");
+    }
   }
 
   res.status(200).json({
@@ -175,6 +222,12 @@ const getExamCodingQuestion = asyncHandler(async (req, res) => {
     if (codingQuestions.length === 0) {
       res.status(404);
       throw new Error(`No coding question found for exam: ${examId}`);
+    }
+
+    // For teachers, check if they own this exam
+    if (req.user.role === 'teacher' && exam.createdBy.toString() !== req.user._id.toString()) {
+      res.status(403);
+      throw new Error("Not authorized to view coding questions for this exam");
     }
 
     res.status(200).json({

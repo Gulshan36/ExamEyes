@@ -21,13 +21,13 @@ import {
   CheckCircle as CheckIcon,
   Quiz as QuizIcon
 } from '@mui/icons-material';
-import { useNavigate, useParams } from 'react-router';
+// import { useNavigate, useParams } from 'react-router';
 
 export default function MultipleChoiceQuestion({ questions, saveUserTestScore, submitTest, onAnswerSelected, onQuestionChange, onAnswersUpdate, questionIndex: externalQuestionIndex }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const navigate = useNavigate();
-  const { examId } = useParams();
+  // const navigate = useNavigate();
+  // const { examId } = useParams();
 
   // Use all questions sequentially (no random selection)
   const selectedQuestions = useMemo(() => {
@@ -100,33 +100,33 @@ export default function MultipleChoiceQuestion({ questions, saveUserTestScore, s
     setIsSubmitting(true);
     
     try {
-      // Process all answers before submitting
-      selectedQuestions.forEach((question, index) => {
+      // Build answers array expected by backend
+      const processedAnswers = selectedQuestions.map((question, index) => {
         const selectedAnswer = userAnswers[index];
-        
-        if (question && question.options && selectedAnswer) {
-          const correctOption = question.options.find((option) => option.isCorrect);
-          const isCorrect = correctOption && correctOption.id === selectedAnswer;
-          
-          if (onAnswerSelected) {
-            onAnswerSelected({
-              questionId: question._id,
-              selectedOption: selectedAnswer,
-              isCorrect: isCorrect,
-            });
-          }
+        const correctOption = question?.options?.find((option) => option.isCorrect);
+        const isCorrect = !!(correctOption && (correctOption._id === selectedAnswer || correctOption.id === selectedAnswer));
 
-          if (isCorrect) {
-            saveUserTestScore();
-          }
+        if (onAnswerSelected && selectedAnswer) {
+          onAnswerSelected({
+            questionId: question._id,
+            selectedOption: selectedAnswer,
+            isCorrect,
+          });
         }
+
+        if (isCorrect) {
+          saveUserTestScore();
+        }
+
+        return {
+          questionId: question._id,
+          selectedOption: selectedAnswer || '',
+        };
       });
 
-      // Navigate or submit based on exam type
-      if (examId) {
-        navigate(`/exam/${examId}/codedetails`);
-      } else {
-        submitTest();
+      // Always delegate submission to parent so it can persist to DB and navigate
+      if (submitTest) {
+        await submitTest(processedAnswers);
       }
     } catch (error) {
       console.error('Error submitting test:', error);

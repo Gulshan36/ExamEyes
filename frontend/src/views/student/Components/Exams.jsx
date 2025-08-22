@@ -68,7 +68,7 @@ const Exams = () => {
             minWidth: 200,
           }}
         >
-          <span style={{ color: "#fff" }}>Your available Exams</span>
+          <span style={{ color: "#fff" }}>All available Exams</span>
         </Typography>
         <Typography
           variant="subtitle1"

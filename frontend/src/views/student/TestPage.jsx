@@ -44,11 +44,13 @@ import {
   useGetExamsQuery,
   useGetQuestionsQuery,
   useSubmitExamMutation,
+  useCheckExamAttemptsQuery,
 } from "../../slices/examApiSlice";
 import { useSaveCheatingLogMutation } from "src/slices/cheatingLogApiSlice";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { useCheatingLog } from "src/context/CheatingLogContext";
+import swal from "sweetalert";
 
 const TestPage = () => {
   const { examId, testId } = useParams();
@@ -63,12 +65,16 @@ const TestPage = () => {
   });
 
   const { data: userExamdata, isLoading: isExamsLoading } = useGetExamsQuery();
+  const { data: attemptData, isLoading: isAttemptsLoading } = useCheckExamAttemptsQuery(examId, { skip: !examId });
   const { userInfo } = useSelector((state) => state.auth);
   const { cheatingLog, updateCheatingLog, resetCheatingLog } = useCheatingLog();
   const [saveCheatingLogMutation] = useSaveCheatingLogMutation();
   const [submitExamMutation] = useSubmitExamMutation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMcqCompleted, setIsMcqCompleted] = useState(false);
+  const [hasShownWarning, setHasShownWarning] = useState(false);
+  const [hasShownFinalWarning, setHasShownFinalWarning] = useState(false);
+  const [autoSubmitted, setAutoSubmitted] = useState(false);
   const [submittedAnswers, setSubmittedAnswers] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answeredQuestions, setAnsweredQuestions] = useState({});
@@ -116,6 +122,62 @@ const TestPage = () => {
     }
   }, [data]);
 
+  // Auto-submit watcher based on total violations
+  useEffect(() => {
+    const totalViolations =
+      (cheatingLog.noFaceCount || 0) +
+      (cheatingLog.multipleFaceCount || 0) +
+      (cheatingLog.cellPhoneCount || 0) +
+      (cheatingLog.prohibitedObjectCount || 0);
+
+    if (autoSubmitted) return;
+
+    if (totalViolations > 0 && totalViolations <= 5 && !hasShownWarning) {
+      setHasShownWarning(true);
+      swal("Please focus on your exam.", { icon: "warning" });
+    } else if (totalViolations > 5 && totalViolations < 10 && !hasShownFinalWarning) {
+      setHasShownFinalWarning(true);
+      swal("Final warning: If you cross 10 violations, your exam will be auto-submitted.", { icon: "warning" });
+    } else if (totalViolations >= 10) {
+      // Auto-submit MCQ phase and persist cheating log with reason
+      (async () => {
+        try {
+          setAutoSubmitted(true);
+
+          // Submit MCQ answers collected so far
+          await submitExamMutation({ 
+            examId, 
+            answers: submittedAnswers,
+            status: 'auto_failed',
+            reason: 'Auto-submitted due to 10+ violations of exam rules.'
+          }).unwrap();
+
+          // Save cheating log with reason
+          const updatedLog = {
+            ...cheatingLog,
+            username: userInfo.name,
+            email: userInfo.email,
+            examId: examId,
+            noFaceCount: parseInt(cheatingLog.noFaceCount) || 0,
+            multipleFaceCount: parseInt(cheatingLog.multipleFaceCount) || 0,
+            cellPhoneCount: parseInt(cheatingLog.cellPhoneCount) || 0,
+            prohibitedObjectCount: parseInt(cheatingLog.prohibitedObjectCount) || 0,
+            screenshots: cheatingLog.screenshots || [],
+            reason: "Auto-submitted due to 10+ violations of exam rules.",
+          };
+
+          await saveCheatingLogMutation(updatedLog).unwrap();
+
+          swal("Exam auto-submitted due to excessive cheating.", { icon: "error" });
+          navigate("/success");
+        } catch (err) {
+          console.error("Auto-submit failed:", err);
+          navigate("/success");
+        }
+      })();
+    }
+  }, [cheatingLog, examId, submittedAnswers, saveCheatingLogMutation, submitExamMutation, userInfo, hasShownWarning, hasShownFinalWarning, autoSubmitted, navigate]);
+
   const handleAnswerSelected = (answer) => {
     setSubmittedAnswers((prev) => [...prev, answer]);
     // Update session stats
@@ -125,18 +187,21 @@ const TestPage = () => {
     }));
   };
 
-  const handleMcqCompletion = async () => {
+  const handleMcqCompletion = async (answersOverride) => {
     try {
-      console.log("Answers being submitted:", submittedAnswers);
+      const answersToSubmit = Array.isArray(answersOverride) && answersOverride.length > 0
+        ? answersOverride
+        : submittedAnswers;
+      console.log("Answers being submitted:", answersToSubmit);
       // Submit exam answers
       await submitExamMutation({
         examId,
-        answers: submittedAnswers,
+        answers: answersToSubmit,
       }).unwrap();
 
       setIsMcqCompleted(true);
-      // Reset cheating log for coding exam
-      resetCheatingLog(examId);
+      // Don't reset cheating log - let it continue from MCQ phase
+      // resetCheatingLog(examId);
       navigate(`/exam/${examId}/codedetails`);
     } catch (error) {
       console.error("Error submitting exam:", error);
@@ -174,8 +239,8 @@ const TestPage = () => {
       console.error("Error saving cheating log:", error);
       toast.error(
         error?.data?.message ||
-          error?.message ||
-          "Failed to save test logs. Please try again."
+        error?.message ||
+        "Failed to save test logs. Please try again."
       );
     } finally {
       setIsSubmitting(false);
@@ -216,6 +281,64 @@ const TestPage = () => {
     );
   }
 
+  // Check if attempts are exhausted
+  if (attemptData && !attemptData.canTakeExam) {
+    return (
+      <PageContainer title="Exam Attempts Exhausted" description="Maximum attempts reached">
+        <Box
+          sx={{
+            minHeight: "100vh",
+            background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            p: 3,
+          }}
+        >
+          <Card sx={{ maxWidth: 600, textAlign: 'center', p: 4 }}>
+            <Avatar
+              sx={{
+                bgcolor: 'error.main',
+                width: 64,
+                height: 64,
+                mx: 'auto',
+                mb: 2,
+              }}
+            >
+              <LockIcon fontSize="large" />
+            </Avatar>
+            <Typography variant="h4" gutterBottom color="error">
+              Maximum Attempts Reached
+            </Typography>
+            <Typography variant="body1" paragraph color="text.secondary">
+              You have used all <strong>{attemptData.maxAttempts}</strong> attempts for this exam.
+            </Typography>
+            {attemptData.lastSubmission && (
+              <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.100', borderRadius: 2 }}>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  Your Last Attempt Results:
+                </Typography>
+                <Chip
+                  label={`Score: ${attemptData.lastSubmission.score || 0} points`}
+                  color="primary"
+                  sx={{ mr: 1, mb: 1 }}
+                />
+                <Chip
+                  label={`Attempt ${attemptData.lastSubmission.attemptNumber}`}
+                  color="secondary"
+                  sx={{ mr: 1, mb: 1 }}
+                />
+              </Box>
+            )}
+            <Typography variant="body2" sx={{ mt: 2 }} color="text.disabled">
+              Contact your teacher if you believe this is an error.
+            </Typography>
+          </Card>
+        </Box>
+      </PageContainer>
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -232,7 +355,7 @@ const TestPage = () => {
       {/* Enhanced Header Section */}
       <Slide direction="down" in={showContent} timeout={800}>
         <Box sx={{ mb: 2, px: 3 }}>
-          <Grid container spacing={8} alignItems="center">
+          <Grid container spacing={7} alignItems="center">
             {/* Main Header */}
             <Grid item xs={12} lg={isMobile ? 12 : 6}>
               <Card
@@ -332,6 +455,21 @@ const TestPage = () => {
                         backdropFilter: "blur(10px)",
                       }}
                     />
+                    {/* {attemptData && (
+                      <Chip
+                        icon={<AssignmentIcon />}
+                        label={`Attempt ${attemptData.currentAttemptCount + 1}/${attemptData.maxAttempts}`}
+                        sx={{
+                          backgroundColor: "rgba(255,255,255,0.25)",
+                          color: "white",
+                          fontSize: "1rem",
+                          py: 2,
+                          px: 3,
+                          fontWeight: "bold",
+                          backdropFilter: "blur(10px)",
+                        }}
+                      />
+                    )} */}
                   </Stack>
                 </CardContent>
               </Card>
@@ -417,7 +555,7 @@ const TestPage = () => {
                         variant="determinate"
                         value={
                           (sessionStats.questionsAnswered / questions.length) *
-                            100 || 0
+                          100 || 0
                         }
                         sx={{
                           height: 8,
@@ -437,7 +575,7 @@ const TestPage = () => {
                       <Chip
                         icon={
                           sessionStats.questionsAnswered ===
-                          questions.length ? (
+                            questions.length ? (
                             <CheckCircleIcon />
                           ) : (
                             <PsychologyIcon />
@@ -960,7 +1098,7 @@ const TestPage = () => {
                         {Math.round(
                           (Object.keys(answeredQuestions).length /
                             questions.length) *
-                            100
+                          100
                         )}
                         %
                       </Typography>

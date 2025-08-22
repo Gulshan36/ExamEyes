@@ -67,6 +67,7 @@ import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { useNavigate, useParams } from "react-router";
 import { useCheatingLog } from "src/context/CheatingLogContext";
+import swal from "sweetalert";
 import NumberOfQuestions from "./Components/NumberOfQuestions";
 
 export default function Coder() {
@@ -79,6 +80,9 @@ export default function Coder() {
   const [questionId, setQuestionId] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasShownWarning, setHasShownWarning] = useState(false);
+  const [hasShownFinalWarning, setHasShownFinalWarning] = useState(false);
+  const [autoSubmitted, setAutoSubmitted] = useState(false);
   const [showContent, setShowContent] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -143,6 +147,62 @@ export default function Coder() {
 
     return () => clearInterval(timer);
   }, [code]);
+
+  // Auto-submit watcher based on total violations for coding page
+  useEffect(() => {
+    const totalViolations =
+      (cheatingLog.noFaceCount || 0) +
+      (cheatingLog.multipleFaceCount || 0) +
+      (cheatingLog.cellPhoneCount || 0) +
+      (cheatingLog.prohibitedObjectCount || 0);
+
+    if (autoSubmitted) return;
+
+    if (totalViolations > 0 && totalViolations <= 5 && !hasShownWarning) {
+      setHasShownWarning(true);
+      swal("Please focus on your exam.", { icon: "warning" });
+    } else if (totalViolations > 5 && totalViolations < 10 && !hasShownFinalWarning) {
+      setHasShownFinalWarning(true);
+      swal("Final warning: If you cross 10 violations, your exam will be auto-submitted.", { icon: "warning" });
+    } else if (totalViolations >= 10) {
+      (async () => {
+        try {
+          setAutoSubmitted(true);
+
+          // Persist coding answer if available (optional)
+          if (code && language && examId) {
+            await axios.post(
+              "/api/coding/submit",
+              { code, language, examId },
+              { withCredentials: true }
+            );
+          }
+
+          // Save cheating log with reason
+          const updatedLog = {
+            ...cheatingLog,
+            username: userInfo.name,
+            email: userInfo.email,
+            examId: examId,
+            noFaceCount: parseInt(cheatingLog.noFaceCount) || 0,
+            multipleFaceCount: parseInt(cheatingLog.multipleFaceCount) || 0,
+            cellPhoneCount: parseInt(cheatingLog.cellPhoneCount) || 0,
+            prohibitedObjectCount: parseInt(cheatingLog.prohibitedObjectCount) || 0,
+            screenshots: cheatingLog.screenshots || [],
+            reason: "Auto-submitted due to 10+ violations of exam rules.",
+          };
+
+          await saveCheatingLogMutation(updatedLog).unwrap();
+
+          swal("Exam auto-submitted due to excessive cheating.", { icon: "error" });
+          navigate("/success");
+        } catch (err) {
+          console.error("Auto-submit (coding) failed:", err);
+          navigate("/success");
+        }
+      })();
+    }
+  }, [cheatingLog, examId, code, language, saveCheatingLogMutation, userInfo, hasShownWarning, hasShownFinalWarning, autoSubmitted, navigate]);
 
   // Enhanced code change handler
   const handleCodeChange = (value) => {

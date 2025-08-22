@@ -75,6 +75,14 @@ export const examApiSlice = apiSlice.injectEndpoints({
         credentials: 'include',
       }),
     }),
+    // Check exam attempts for a student
+    checkExamAttempts: builder.query({
+      query: (examId) => ({
+        url: `${EXAMS_URL}/exam/${examId}/attempts`,
+        method: 'GET',
+      }),
+      providesTags: ['ExamAttempts'],
+    }),
     // Get exam results by examId
     getExamResults: builder.query({
       query: (examId) => ({
@@ -113,6 +121,13 @@ export const examApiSlice = apiSlice.injectEndpoints({
       }),
       providesTags: ['TeacherSubmissions'],
     }),
+    // Get all submissions across all exams (admin/teacher overview)
+    getAllSubmissions: builder.query({
+      query: () => ({
+        url: `${EXAMS_URL}/all-submissions`,
+        method: 'GET',
+      }),
+    }),
     // Submit an exam
     submitExam: builder.mutation({
       query: (data) => ({
@@ -122,6 +137,33 @@ export const examApiSlice = apiSlice.injectEndpoints({
       }),
       // Invalidate relevant caches when exam is submitted
       invalidatesTags: ['StudentStats', 'TeacherSubmissions', 'ExamResults'],
+    }),
+    // Update a submission score
+    updateSubmissionScore: builder.mutation({
+      query: ({ submissionId, score }) => ({
+        url: `${EXAMS_URL}/submissions/${submissionId}/score`,
+        method: 'PUT',
+        body: { score },
+      }),
+      invalidatesTags: ['TeacherSubmissions', 'ExamResults'],
+    }),
+    // Approve or revoke cheating logs for a submission
+    approveCheatingLogs: builder.mutation({
+      query: ({ submissionId, approve }) => ({
+        url: `${EXAMS_URL}/submissions/${submissionId}/approve-cheating-logs`,
+        method: 'PUT',
+        body: { approve },
+      }),
+      invalidatesTags: ['TeacherSubmissions', 'ExamResults'],
+    }),
+    // Approve or revoke failure reason display for a submission
+    approveFailureReason: builder.mutation({
+      query: ({ submissionId, approve }) => ({
+        url: `${EXAMS_URL}/submissions/${submissionId}/approve-failure-reason`,
+        method: 'PUT',
+        body: { approve },
+      }),
+      invalidatesTags: ['TeacherSubmissions', 'ExamResults'],
     }),
   }),
 });
@@ -133,6 +175,7 @@ export const {
   useGetExamByIdQuery,
   useCreateExamMutation,
   useUpdateExamMutation,
+  useCheckExamAttemptsQuery,
   useGetQuestionsQuery,
   useCreateQuestionMutation,
   useDeleteExamMutation,
@@ -143,4 +186,8 @@ export const {
   useGetLastStudentSubmissionQuery,
   useGetStudentStatsQuery,
   useGetTeacherSubmissionsQuery,
+  useGetAllSubmissionsQuery,
+  useUpdateSubmissionScoreMutation,
+  useApproveCheatingLogsMutation,
+  useApproveFailureReasonMutation,
 } = examApiSlice;

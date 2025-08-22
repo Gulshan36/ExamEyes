@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Button, TextField, FormControlLabel, Checkbox, Stack, Select, MenuItem, Typography, Paper, Divider } from '@mui/material';
 import swal from 'sweetalert';
-import { useCreateQuestionMutation, useGetExamsQuery, useGetQuestionsQuery, useUpdateQuestionMutation } from 'src/slices/examApiSlice';
+import { useCreateQuestionMutation, useGetMyExamsQuery, useGetQuestionsQuery, useUpdateQuestionMutation } from 'src/slices/examApiSlice';
 import { toast } from 'react-toastify';
 
 const AddQuestionForm = () => {
@@ -20,7 +20,7 @@ const AddQuestionForm = () => {
 
   const [createQuestion, { isLoading: isCreating }] = useCreateQuestionMutation();
   const [updateQuestion, { isLoading: isUpdating }] = useUpdateQuestionMutation();
-  const { data: examsData } = useGetExamsQuery();
+  const { data: examsData } = useGetMyExamsQuery();
   const { data: examQuestionsData, refetch: refetchExamQuestions } = useGetQuestionsQuery(selectedExamId, { skip: !selectedExamId });
 
   useEffect(() => {

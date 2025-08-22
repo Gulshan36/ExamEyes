@@ -23,6 +23,8 @@ const cheatingLogSchema = new mongoose.Schema(
         detectedAt: { type: Date, default: Date.now },
       },
     ],
+    // Optional reason for submission (e.g., auto-submitted due to cheating)
+    reason: { type: String },
   },
   {
     timestamps: true,

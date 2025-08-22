@@ -1,5 +1,7 @@
+
 import React, { useEffect, useState } from 'react';
-import { Box,
+import {
+  Box,
   Paper,
   Table,
   TableBody,
@@ -22,13 +24,14 @@ import { Box,
   IconButton,
   Tooltip,
   Chip,
-  Divider,
+  Button,
 } from '@mui/material';
-import { useGetExamsQuery } from 'src/slices/examApiSlice';
+import { useGetMyExamsQuery } from 'src/slices/examApiSlice';
 import { useGetCheatingLogsQuery } from 'src/slices/cheatingLogApiSlice';
 import CloseIcon from '@mui/icons-material/Close';
 import ImageIcon from '@mui/icons-material/Image';
 import WarningIcon from '@mui/icons-material/Warning';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 export default function CheatingTable() {
   const [filter, setFilter] = useState('');
@@ -37,11 +40,12 @@ export default function CheatingTable() {
   const [selectedLog, setSelectedLog] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
 
-  const { data: examsData, isLoading: examsLoading, error: examsError } = useGetExamsQuery();
+  const { data: examsData, isLoading: examsLoading, error: examsError } = useGetMyExamsQuery();
   const {
     data: cheatingLogsData,
     isLoading: logsLoading,
     error: logsError,
+    refetch: refetchLogs,
   } = useGetCheatingLogsQuery(selectedExamId, {
     skip: !selectedExamId,
   });
@@ -55,9 +59,16 @@ export default function CheatingTable() {
 
   useEffect(() => {
     if (cheatingLogsData) {
+      console.log('Received cheating logs data:', cheatingLogsData);
       setCheatingLogs(Array.isArray(cheatingLogsData) ? cheatingLogsData : []);
     }
   }, [cheatingLogsData]);
+
+  const handleRefresh = () => {
+    if (selectedExamId) {
+      refetchLogs();
+    }
+  };
 
   const filteredUsers = cheatingLogs.filter(
     (log) =>
@@ -114,49 +125,15 @@ export default function CheatingTable() {
   }
 
   return (
-    <Box
-      sx={{
-        background: "#fff",
-        borderRadius: 4,
-        boxShadow: "0 4px 16px 0 #41bcba22",
-        p: { xs: 2, md: 4 },
-        mb: 2,
-        border: "2px solid #41bcba",
-        maxWidth: 1050,
-        mx: "auto",
-        mt: 2,
-      }}
-    >
-      <Typography
-        variant="h4"
-        align="center"
-        sx={{
-          fontWeight: 700,
-          color: "#159fc1",
-          mb: 2,
-          textShadow: "2px 2px 8px #ed93c7",
-          letterSpacing: 2,
-        }}
-      >
-        Cheating & Activity Logs
-      </Typography>
-      <Divider sx={{ mb: 3, background: "linear-gradient(90deg, #41bcba 0%, #ed93c7 100%)", height: 3, borderRadius: 2 }} />
-
-      <Paper sx={{ p: 2, mb: 2, background: "#f8fafd", borderRadius: 3 }}>
+    <Box>
+      <Paper sx={{ p: 2, mb: 2 }}>
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={4}>
             <Select
               label="Select Exam"
               value={selectedExamId || ''}
               onChange={(e) => setSelectedExamId(e.target.value)}
               fullWidth
-              size="small"
-              sx={{
-                background: "#fff",
-                borderRadius: 2,
-                minWidth: 220,
-                maxWidth: 300,
-              }}
             >
               {examsData.map((exam) => (
                 <MenuItem key={exam.examId} value={exam.examId}>
@@ -165,16 +142,25 @@ export default function CheatingTable() {
               ))}
             </Select>
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={4}>
             <TextField
               label="Filter by Name or Email"
               variant="outlined"
               fullWidth
-              size="small"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              sx={{ background: "#fff", borderRadius: 2 }}
             />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Button
+              variant="contained"
+              startIcon={<RefreshIcon />}
+              onClick={handleRefresh}
+              disabled={logsLoading}
+              fullWidth
+            >
+              Refresh Logs
+            </Button>
           </Grid>
         </Grid>
       </Paper>
@@ -190,81 +176,93 @@ export default function CheatingTable() {
           </Typography>
         </Box>
       ) : (
-        <TableContainer component={Paper} sx={{ borderRadius: 3, background: "#f8fafd" }}>
+        <TableContainer component={Paper}>
           <Table>
             <TableHead>
-              <TableRow sx={{ background: "#41bcba22" }}>
-                <TableCell sx={{ fontWeight: 700, color: "#159fc1" }}>Sr.No</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#159fc1" }}>Name</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#159fc1" }}>Email</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#c52d84" }}>No Face Count</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#c52d84" }}>Multiple Face Count</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#c52d84" }}>Cell Phone Count</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#c52d84" }}>Prohibited Object Count</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: "#159fc1" }}>Screenshots</TableCell>
+              <TableRow>
+                <TableCell>Sno</TableCell>
+                <TableCell>Name</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell>No Face Count</TableCell>
+                <TableCell>Multiple Face Count</TableCell>
+                <TableCell>Cell Phone Count</TableCell>
+                <TableCell>Prohibited Object Count</TableCell>
+                <TableCell>Total Violations</TableCell>
+                <TableCell>Screenshots</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center">
+                  <TableCell colSpan={9} align="center">
                     No cheating logs found for this exam
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredUsers.map((log, index) => (
-                  <TableRow key={index} hover sx={{ transition: "background 0.2s", "&:hover": { background: "#e3f7f6" } }}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>{log.username}</TableCell>
-                    <TableCell>{log.email}</TableCell>
-                    <TableCell>
-                      <Chip
-                        icon={getViolationIcon(log.noFaceCount)}
-                        label={log.noFaceCount}
-                        color={getViolationColor(log.noFaceCount)}
-                        size="small"
-                        sx={{ fontWeight: 600 }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        icon={getViolationIcon(log.multipleFaceCount)}
-                        label={log.multipleFaceCount}
-                        color={getViolationColor(log.multipleFaceCount)}
-                        size="small"
-                        sx={{ fontWeight: 600 }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        icon={getViolationIcon(log.cellPhoneCount)}
-                        label={log.cellPhoneCount}
-                        color={getViolationColor(log.cellPhoneCount)}
-                        size="small"
-                        sx={{ fontWeight: 600 }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        icon={getViolationIcon(log.prohibitedObjectCount)}
-                        label={log.prohibitedObjectCount}
-                        color={getViolationColor(log.prohibitedObjectCount)}
-                        size="small"
-                        sx={{ fontWeight: 600 }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Tooltip title="View Screenshots">
-                        <IconButton
-                          onClick={() => handleViewScreenshots(log)}
-                          disabled={!log.screenshots?.length}
-                        >
-                          <ImageIcon color={log.screenshots?.length ? 'primary' : 'disabled'} />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                ))
+                filteredUsers.map((log, index) => {
+                  const totalViolations = (log.noFaceCount || 0) + 
+                                        (log.multipleFaceCount || 0) + 
+                                        (log.cellPhoneCount || 0) + 
+                                        (log.prohibitedObjectCount || 0);
+                  
+                  return (
+                    <TableRow key={index}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{log.username}</TableCell>
+                      <TableCell>{log.email}</TableCell>
+                      <TableCell>
+                        <Chip
+                          icon={getViolationIcon(log.noFaceCount)}
+                          label={log.noFaceCount || 0}
+                          color={getViolationColor(log.noFaceCount)}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          icon={getViolationIcon(log.multipleFaceCount)}
+                          label={log.multipleFaceCount || 0}
+                          color={getViolationColor(log.multipleFaceCount)}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          icon={getViolationIcon(log.cellPhoneCount)}
+                          label={log.cellPhoneCount || 0}
+                          color={getViolationColor(log.cellPhoneCount)}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          icon={getViolationIcon(log.prohibitedObjectCount)}
+                          label={log.prohibitedObjectCount || 0}
+                          color={getViolationColor(log.prohibitedObjectCount)}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          icon={getViolationIcon(totalViolations)}
+                          label={totalViolations}
+                          color={getViolationColor(totalViolations)}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Tooltip title="View Screenshots">
+                          <IconButton
+                            onClick={() => handleViewScreenshots(log)}
+                            disabled={!log.screenshots?.length}
+                          >
+                            <ImageIcon color={log.screenshots?.length ? 'primary' : 'disabled'} />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -284,14 +282,14 @@ export default function CheatingTable() {
         <DialogContent>
           <Grid container spacing={2}>
             {selectedLog?.screenshots?.map((screenshot, index) => (
-              <Grid item xs={12} sm={6} md={4} key={index}>
-                <Card sx={{ borderRadius: 3, boxShadow: "0 2px 8px #41bcba22" }}>
+              <Grid item xs={12} md={4} key={index}>
+                <Card>
                   <CardMedia
                     component="img"
                     height="200"
                     image={screenshot.url}
                     alt={`Violation - ${screenshot.type}`}
-                    sx={{ objectFit: 'cover', borderRadius: 2 }}
+                    sx={{ objectFit: 'cover' }}
                   />
                   <CardContent>
                     <Typography variant="subtitle2" color="text.secondary">

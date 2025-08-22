@@ -101,6 +101,23 @@ const CreateExam = ({ formik, title, subtitle, subtext, submitButtonText }) => {
           />
         </Stack>
 
+        <Stack mb={3}>
+          <CustomTextField
+            id="maxAttempts"
+            name="maxAttempts"
+            label="Maximum Attempts per Student"
+            type="number"
+            variant="outlined"
+            fullWidth
+            value={values.maxAttempts}
+            onChange={handleChange}
+            error={touched.maxAttempts && Boolean(errors.maxAttempts)}
+            helperText={touched.maxAttempts && errors.maxAttempts || "Students can attempt this exam up to this many times (1-10)"}
+            inputProps={{ min: 1, max: 10 }}
+            sx={{ background: "#f8fafd", borderRadius: 2 }}
+          />
+        </Stack>
+
         <Stack mb={3} direction={{ xs: "column", sm: "row" }} spacing={2}>
           <CustomTextField
             id="liveDate"

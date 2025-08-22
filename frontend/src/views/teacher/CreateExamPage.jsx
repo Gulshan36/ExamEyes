@@ -23,6 +23,13 @@ const examValidationSchema = yup.object({
     .integer('Exam Duration must be an integer')
     .min(1, 'Exam Duration must be at least 1 minute')
     .required('Exam Duration is required'),
+  maxAttempts: yup
+    .number()
+    .typeError('Max Attempts must be a number')
+    .integer('Max Attempts must be an integer')
+    .min(1, 'Max Attempts must be at least 1')
+    .max(10, 'Max Attempts cannot exceed 10')
+    .required('Max Attempts is required'),
   liveDate: yup.date().required('Live Date and Time is required'),
   deadDate: yup.date().required('Dead Date and Time is required'),
   codingQuestions: yup.array().of(
@@ -51,6 +58,7 @@ const CreateExamPage = () => {
     examName: '',
     totalQuestions: '',
     duration: '',
+    maxAttempts: 1,
     liveDate: '',
     deadDate: '',
     codingQuestions: [
@@ -84,6 +92,7 @@ const CreateExamPage = () => {
             examName: '',
             totalQuestions: '',
             duration: '',
+            maxAttempts: 1,
             liveDate: '',
             deadDate: '',
             codingQuestions: [

@@ -54,7 +54,7 @@ const DeleteIcon = ({ examId }) => {
         <DialogTitle>Are you sure you want to delete this exam?</DialogTitle>
         <DialogContent>
           <DialogContentText id="alert-dialog-slide-description">
-            This action cannot be undone.
+            This action cannot be undo.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

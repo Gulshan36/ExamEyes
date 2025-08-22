@@ -69,7 +69,8 @@ const DescriptionAndInstructions = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const { examId } = useParams();
-  const { data: questions, isLoading } = useGetQuestionsQuery(examId);
+  const { data: questions, isLoading, isError, error } = useGetQuestionsQuery(examId);
+  const [examWindowError, setExamWindowError] = useState('');
 
   useEffect(() => {
     setShowContent(true);
@@ -96,6 +97,15 @@ const DescriptionAndInstructions = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (isError) {
+      const errMsg = error?.data?.message || error?.error || 'Unable to load exam. Please try again later.';
+      setExamWindowError(errMsg);
+    } else {
+      setExamWindowError('');
+    }
+  }, [isError, error]);
+
   const testId = uniqueId();
   
   const handleCertifyChange = () => {
@@ -103,13 +113,12 @@ const DescriptionAndInstructions = () => {
   };
 
   const handleTest = () => {
-    const isValid = true; // Replace with your date validation logic
-    console.log('Test link');
-    if (isValid) {
-      navigate(`/exam/${examId}/${testId}`);
-    } else {
-      toast.error('Test date is not valid.');
+    // If getQuestions was blocked due to window, show message
+    if (examWindowError) {
+      toast.error(examWindowError);
+      return;
     }
+    navigate(`/exam/${examId}/${testId}`);
   };
 
   const scrollToTop = () => {
@@ -293,6 +302,11 @@ const DescriptionAndInstructions = () => {
                   {questions && (
                     <Alert severity="info" sx={{ mb: 3 }}>
                       This exam contains {questions.length} questions. Good luck!
+                    </Alert>
+                  )}
+                  {!questions && !isLoading && examWindowError && (
+                    <Alert severity="error" sx={{ mb: 3 }}>
+                      {examWindowError}
                     </Alert>
                   )}
                 </>

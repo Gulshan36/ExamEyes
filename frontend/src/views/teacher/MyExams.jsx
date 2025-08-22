@@ -51,7 +51,9 @@ const MyExams = () => {
   const handleDeleteExam = async () => {
     if (examToDelete) {
       try {
-        await deleteExam(examToDelete._id).unwrap();
+        // Use the public UUID examId expected by the backend delete route
+        const idForDelete = examToDelete.examId || examToDelete._id;
+        await deleteExam(idForDelete).unwrap();
         setDeleteDialogOpen(false);
         setExamToDelete(null);
         refetch(); // Refresh the exam list
@@ -59,6 +61,13 @@ const MyExams = () => {
         console.error('Failed to delete exam:', err);
       }
     }
+  };
+
+  // Replace your handleEditClick with this
+  const handleEditClick = (event, exam) => {
+    event.stopPropagation(); // Prevent bubbling
+    const idForEdit = exam.examId || exam._id; // backend supports examId or _id
+    navigate(`/teacher/exam/edit/${idForEdit}`);
   };
 
   const formatDate = (dateString) => {
@@ -182,7 +191,7 @@ const MyExams = () => {
             variant="outlined"
             size="small"
             startIcon={<VisibilityIcon />}
-            onClick={() => navigate(`/exam/${exam._id}`)}
+            onClick={() => navigate(`/add-questions`)}
             sx={{ flexGrow: 1 }}
           >
             View
@@ -191,11 +200,12 @@ const MyExams = () => {
             variant="outlined"
             size="small"
             startIcon={<EditIcon />}
-            onClick={() => navigate(`/exam/edit/${exam._id}`)}
+            onClick={(event) => handleEditClick(event, exam)}   // ✅ pass exam here
             sx={{ flexGrow: 1 }}
           >
             Edit
           </Button>
+
           <IconButton
             color="error"
             size="small"
@@ -334,8 +344,8 @@ const MyExams = () => {
         </DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete the exam "{examToDelete?.examName}"? 
-            This action cannot be undone.
+            Are you sure you want to delete the exam "{examToDelete?.examName}"?
+            This action cannot be undo.
           </Typography>
         </DialogContent>
         <DialogActions>

@@ -1,115 +1,81 @@
 import React from 'react';
 import Menuitems from './MenuItems';
 import { useLocation } from 'react-router';
-import { Box, List, Typography, Divider } from '@mui/material';
+import { Box, List } from '@mui/material';
 import NavItem from './NavItem';
 import NavGroup from './NavGroup/NavGroup';
 import { useSelector } from 'react-redux';
 import { useGetLastStudentSubmissionQuery } from 'src/slices/examApiSlice';
-import MyExams from '../../../views/teacher/MyExams';
-import { Dashboard } from '@mui/icons-material';
+import { styled } from '@mui/material/styles';
+
+const StyledList = styled(List)(({ theme }) => ({
+  pt: 0,
+  '.MuiListItem-root': {
+    borderRadius: 12,
+    marginBottom: 4,
+    transition: 'background 0.2s',
+    '&:hover': {
+      background: theme.palette.primary[100] || '#e3eafe',
+      color: theme.palette.primary.main,
+      boxShadow: theme.shadows[1],
+    },
+    '&.Mui-selected, &.Mui-selected:hover': {
+      background: theme.palette.primary.main,
+      color: 'white',
+      boxShadow: theme.shadows[2],
+    },
+  },
+  '.MuiListSubheader-root': {
+    fontWeight: 700,
+    color: theme.palette.primary.dark,
+    fontSize: 13,
+    marginTop: 16,
+    marginBottom: 4,
+    letterSpacing: 1,
+    background: 'transparent',
+  },
+}));
 
 const SidebarItems = () => {
   const { userInfo } = useSelector((state) => state.auth);
   const { pathname } = useLocation();
   const pathDirect = pathname;
 
-  // Fetch the last submitted exam ID for students
-  const { data: lastSubmissionData } = useGetLastStudentSubmissionQuery(undefined, {
-    skip: userInfo?.role !== 'student',
+  const userRole = userInfo?.role || '';
+  const menuItems = Menuitems(userRole); // ✅ get role-specific menu
+
+  const isStudent = userRole === 'student';
+
+  // Add error handling for the query
+  const { data: lastSubmissionData, error: submissionError } = useGetLastStudentSubmissionQuery(undefined, {
+    skip: !isStudent,
   });
 
-  const studentResultExamId = lastSubmissionData?.examId;
+  // If there's an error, just continue without the submission data
+  const studentResultExamId = lastSubmissionData?.examId ?? null;
 
-  // Dynamically adjust menu items for students
-  const adjustedMenuItems = Menuitems.map((item) => {
-    if (item.title === 'Result' && userInfo?.role === 'student') {
-      const newHref = studentResultExamId ? `/result/${studentResultExamId}` : '/result';
-      return {
-        ...item,
-        href: newHref,
-      };
+  const adjustedMenuItems = menuItems.map((item) => {
+    const clonedItem = { ...item };
+    if (clonedItem.title === 'Result' && isStudent) {
+      // Always send students to the results dashboard list with filters
+      clonedItem.href = '/result';
     }
-    return item;
+    return clonedItem;
   });
 
   return (
-    <Box
-      sx={{
-        px: 2,
-        py: 3,
-        background: '#fff',
-        minHeight: '100vh',
-        borderTopRightRadius: 24,
-        borderBottomRightRadius: 24,
-        boxShadow: '2px 0 16px 0 #41bcba22',
-        borderRight: '3px solid #159fc1',
-      }}
-    >
-      <Typography
-        variant="h5"
-        sx={{
-          fontWeight: 700,
-          color: "#159fc1",
-          letterSpacing: 1,
-          mb: 2,
-          textAlign: "center",
-          textShadow: "1px 1px 8px #ed93c7",
-        }}
-      >
-        Exam Eye
-      </Typography>
-      <Divider sx={{ mb: 2, background: "#159fc1", opacity: 0.7 }} />
-      <List sx={{ pt: 0 }} className="sidebarNav">
+    <Box sx={{ px: 2 }}>
+      <StyledList className="sidebarNav">
         {adjustedMenuItems.map((item) => {
-          // Hide certain items for students
-          if (
-            userInfo.role === 'student' &&
-            ['Create Exam', 'Add Questions', 'Exam Logs','My Exams'].includes(item.title)
-          ) {
-            return null;
-          }
-          // SubHeader
           if (item.subheader) {
-            if (userInfo.role === 'student' && item.subheader === 'Teacher') {
-              return null;
-            }
-            return (
-              <Box key={item.subheader} sx={{ mb: 1 }}>
-                <Typography
-                  variant="subtitle2"
-                  sx={{
-                    color: "#159fc1",
-                    fontWeight: 600,
-                    letterSpacing: 1,
-                    pl: 1,
-                    mb: 0.5,
-                  }}
-                >
-                  {item.subheader}
-                </Typography>
-                <NavGroup item={item} />
-              </Box>
-            );
+            return <NavGroup item={item} key={item.subheader} />;
           } else {
-            return (
-              <Box key={item.id} sx={{
-                mb: 1,
-                borderRadius: 2,
-                background: "#f8fafd",
-                transition: "background 0.2s, box-shadow 0.9s",
-                '&:hover': {
-                  background: '#e3f7f6',
-                  boxShadow: '0 2px 8px #159fc133',
-                },
-              }}>
-                <NavItem item={item} pathDirect={pathDirect} />
-              </Box>
-            );
+            return <NavItem item={item} key={item.id} pathDirect={pathDirect} />;
           }
         })}
-      </List>
+      </StyledList>
     </Box>
   );
 };
+
 export default SidebarItems;

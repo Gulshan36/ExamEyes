@@ -21,6 +21,8 @@ import {
   alpha,
   CircularProgress,
   Alert,
+  LinearProgress,
+  Divider,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -30,6 +32,20 @@ import {
   IconButton,
   Tooltip,
 } from '@mui/material';
+import { Bar, Line, Doughnut } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  ArcElement,
+  Tooltip as ChartTooltip,
+  Legend,
+} from 'chart.js';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, ChartTooltip, Legend);
 import {
   Assignment as AssignmentIcon,
   People as PeopleIcon,
@@ -338,7 +354,7 @@ const TeacherDashboard = () => {
                             <Tooltip title="View Details">
                               <IconButton
                                 size="small"
-                                onClick={() => navigate(`/result/${submission.examId}`)}
+                                onClick={() => navigate(`/teacher/result/${submission.examId}/${submission.studentId}`)}
                               >
                                 <VisibilityIcon />
                               </IconButton>
@@ -440,21 +456,202 @@ const TeacherDashboard = () => {
           <Typography variant="h6" gutterBottom>
             Student Performance Overview
           </Typography>
-          
+
           {submissionStats.length === 0 ? (
             <Alert severity="info" sx={{ mt: 2 }}>
               No student performance data available yet.
             </Alert>
           ) : (
             <Box sx={{ mt: 2 }}>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Total unique students: {totalStudents}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Average class performance: {averageScore}%
-              </Typography>
-              
-              {/* You can add more detailed analytics here */}
+              {/* Overall trends */}
+              <Grid container spacing={3} sx={{ mb: 2 }}>
+                <Grid item xs={12} md={3}>
+                  <Card>
+                    <CardContent>
+                      <Typography variant="subtitle2" color="text.secondary">Unique Students</Typography>
+                      <Typography variant="h4" fontWeight="bold">{totalStudents}</Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <Card>
+                    <CardContent>
+                      <Typography variant="subtitle2" color="text.secondary">Total Submissions</Typography>
+                      <Typography variant="h4" fontWeight="bold">{submissionStats.length}</Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Card>
+                    <CardContent>
+                      <Typography variant="subtitle2" color="text.secondary">Average Class Performance</Typography>
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Typography variant="h4" fontWeight="bold">{averageScore}%</Typography>
+                        <LinearProgress variant="determinate" value={Number(averageScore)} sx={{ flex: 1, height: 10, borderRadius: 5 }} />
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+
+              {/* Build aggregates */}
+              {(() => {
+                const studentMap = new Map();
+                const examMap = new Map();
+                submissionStats.forEach(s => {
+                  const pct = Math.round((s.score / (s.totalQuestions * 10)) * 100);
+                  // per student
+                  const sid = s.studentEmail;
+                  if (!studentMap.has(sid)) {
+                    studentMap.set(sid, { name: s.studentName, email: s.studentEmail, count: 0, sum: 0, last: s.submittedAt });
+                  }
+                  const st = studentMap.get(sid);
+                  st.count += 1; st.sum += pct; st.last = st.last && st.last > s.submittedAt ? st.last : s.submittedAt;
+
+                  // per exam
+                  const eid = s.examId;
+                  if (!examMap.has(eid)) {
+                    examMap.set(eid, { name: s.examName, scores: [] });
+                  }
+                  examMap.get(eid).scores.push(pct);
+                });
+
+                const studentsAgg = Array.from(studentMap.values()).map(st => ({
+                  name: st.name,
+                  email: st.email,
+                  attempts: st.count,
+                  avg: Math.round(st.sum / st.count),
+                  last: st.last,
+                })).sort((a,b) => b.avg - a.avg);
+
+                const examsAgg = Array.from(examMap.values()).map(ex => {
+                  const avg = Math.round(ex.scores.reduce((a,b)=>a+b,0) / ex.scores.length);
+                  const best = Math.max(...ex.scores);
+                  const worst = Math.min(...ex.scores);
+                  return { name: ex.name, submissions: ex.scores.length, avg, best, worst };
+                }).sort((a,b) => b.avg - a.avg);
+
+                // Build datasets for charts
+                const studentLabels = studentsAgg.map(s => s.name);
+                const studentAvg = studentsAgg.map(s => s.avg);
+                const examLabels = examsAgg.map(e => e.name);
+                const examAvg = examsAgg.map(e => e.avg);
+                const distribution = [
+                  submissionStats.filter(s => Math.round((s.score / (s.totalQuestions * 10)) * 100) >= 80).length,
+                  submissionStats.filter(s => {
+                    const p = Math.round((s.score / (s.totalQuestions * 10)) * 100);
+                    return p >= 60 && p < 80;
+                  }).length,
+                  submissionStats.filter(s => Math.round((s.score / (s.totalQuestions * 10)) * 100) < 60).length,
+                ];
+
+                return (
+                  <>
+                    {/* Individual student progress */}
+                    <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Individual Student Progress</Typography>
+                    <Grid container spacing={3} alignItems="stretch" sx={{ mb: 2 }}>
+                      <Grid item xs={12} md={9}>
+                        <Card sx={{ height: 360, display: 'flex', flexDirection: 'column' }}>
+                          <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>Average % by Student</Typography>
+                            <Box sx={{ flex: 1 }}>
+                              <Bar
+                              data={{
+                                labels: studentLabels,
+                                datasets: [{
+                                  label: 'Avg %',
+                                  data: studentAvg,
+                                  backgroundColor: 'rgba(25, 118, 210, 0.5)',
+                                  borderColor: 'rgba(25, 118, 210, 1)',
+                                  borderWidth: 1,
+                                }],
+                              }}
+                              options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { max: 100, beginAtZero: true } } }}
+                            />
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <Card sx={{ height: 360, display: 'flex', flexDirection: 'column' }}>
+                          <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>Score Distribution</Typography>
+                            <Box sx={{ flex: 1 }}>
+                              <Doughnut
+                              data={{
+                                labels: ['>= 80%', '60% - 79%', '< 60%'],
+                                datasets: [{
+                                  data: distribution,
+                                  backgroundColor: ['#2e7d32', '#f9a825', '#e53935'],
+                                }],
+                              }}
+                              options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }}
+                            />
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    </Grid>
+                    <TableContainer component={Paper}>
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell><strong>Student</strong></TableCell>
+                            <TableCell><strong>Email</strong></TableCell>
+                            <TableCell align="center"><strong>Attempts</strong></TableCell>
+                            <TableCell align="center"><strong>Avg %</strong></TableCell>
+                            <TableCell><strong>Progress</strong></TableCell>
+                            <TableCell align="center"><strong>Last Submitted</strong></TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {studentsAgg.map((st, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell>{st.name}</TableCell>
+                              <TableCell>{st.email}</TableCell>
+                              <TableCell align="center">{st.attempts}</TableCell>
+                              <TableCell align="center">{st.avg}%</TableCell>
+                              <TableCell>
+                                <LinearProgress variant="determinate" value={st.avg} sx={{ height: 8, borderRadius: 4, maxWidth: 200 }} />
+                              </TableCell>
+                              <TableCell align="center">{new Date(st.last).toLocaleString()}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+
+                    <Divider sx={{ my: 3 }} />
+
+                    {/* Exam analytics */}
+                    <Typography variant="h6" sx={{ mb: 1 }}>Exam Analytics</Typography>
+                    <TableContainer component={Paper}>
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell><strong>Exam</strong></TableCell>
+                            <TableCell align="center"><strong>Submissions</strong></TableCell>
+                            <TableCell align="center"><strong>Avg %</strong></TableCell>
+                            <TableCell align="center"><strong>Best %</strong></TableCell>
+                            <TableCell align="center"><strong>Worst %</strong></TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {examsAgg.map((ex, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell>{ex.name}</TableCell>
+                              <TableCell align="center">{ex.submissions}</TableCell>
+                              <TableCell align="center">{ex.avg}%</TableCell>
+                              <TableCell align="center">{ex.best}%</TableCell>
+                              <TableCell align="center">{ex.worst}%</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </>
+                );
+              })()}
             </Box>
           )}
         </TabPanel>

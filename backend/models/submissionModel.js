@@ -12,6 +12,12 @@ const submissionSchema = mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    attemptNumber: {
+      type: Number,
+      required: true,
+      default: 1,
+      min: 1,
+    },
     score: {
       type: Number,
       required: true,
@@ -35,6 +41,42 @@ const submissionSchema = mongoose.Schema(
         },
       },
     ],
+    // Optional coding submission captured at the submission root
+    codingAnswer: {
+      code: { type: String },
+      language: { type: String },
+    },
+    // Status and reason for submission (e.g., auto-failed due to cheating)
+    status: {
+      type: String,
+      enum: ['submitted', 'passed', 'failed', 'auto_failed'],
+      default: 'submitted',
+    },
+    reason: { type: String },
+    // Teacher approval for releasing cheating logs to students
+    cheatingLogsApproved: {
+      type: Boolean,
+      default: false,
+    },
+    cheatingLogsApprovedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    cheatingLogsApprovedAt: {
+      type: Date,
+    },
+    // Teacher approval for showing failure reason to students
+    failureReasonApproved: {
+      type: Boolean,
+      default: false,
+    },
+    failureReasonApprovedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    failureReasonApprovedAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,

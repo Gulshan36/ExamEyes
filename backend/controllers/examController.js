@@ -2,6 +2,7 @@ import asyncHandler from "express-async-handler";
 import Exam from "./../models/examModel.js";
 import Submission from "./../models/submissionModel.js";
 import Question from "./../models/quesModel.js";
+import CheatingLog from "./../models/cheatingLogModel.js";
 import mongoose from 'mongoose';
 
 // @desc Get all exams
@@ -38,6 +39,12 @@ const getExamById = asyncHandler(async (req, res) => {
   }
 
   if (exam) {
+    // For teachers, check if they own this exam (unless they're an admin)
+    if (req.user.role === 'teacher' && exam.createdBy.toString() !== req.user._id.toString()) {
+      res.status(403);
+      throw new Error("Not authorized to view this exam");
+    }
+    
     // Ensure backward compatibility - convert old codingQuestion to new codingQuestions array
     if (!exam.codingQuestions && exam.codingQuestion) {
       exam.codingQuestions = [exam.codingQuestion];
@@ -113,6 +120,12 @@ const updateExam = asyncHandler(async (req, res) => {
   }
 
   if (exam) {
+    // Check if the user is authorized to update this exam
+    if (exam.createdBy.toString() !== req.user._id.toString()) {
+      res.status(403);
+      throw new Error("Not authorized to update this exam");
+    }
+    
     exam.examName = examName || exam.examName;
     exam.totalQuestions = totalQuestions || exam.totalQuestions;
     exam.duration = duration || exam.duration;
@@ -138,15 +151,46 @@ const updateExam = asyncHandler(async (req, res) => {
 
 const DeleteExamById = asyncHandler(async (req, res) => {
   const { examId } = req.params;
-  const exam = await Exam.findOneAndDelete({ examId: examId });
+  
+  // First find the exam to check ownership
+  const exam = await Exam.findOne({ examId: examId });
+  
   if (!exam) {
     res.status(404);
     throw new Error("Exam not found");
   }
-  console.log("deleted exam", exam);
-  res.status(200).json(exam);
+  
+  // Check if the user is authorized to delete this exam
+  if (exam.createdBy.toString() !== req.user._id.toString()) {
+    res.status(403);
+    throw new Error("Not authorized to delete this exam");
+  }
+  
+  // Delete all submissions associated with this exam first
+  const examObjectId = exam._id;
+  const deletedSubmissions = await Submission.deleteMany({ examId: examObjectId });
+  console.log(`Deleted ${deletedSubmissions.deletedCount} submissions for exam ${examId}`);
+  
+  // Delete all questions associated with this exam
+  const deletedQuestions = await Question.deleteMany({ examId: examId });
+  console.log(`Deleted ${deletedQuestions.deletedCount} questions for exam ${examId}`);
+  
+  // Delete all cheating logs associated with this exam
+  const deletedCheatingLogs = await CheatingLog.deleteMany({ examId: examId });
+  console.log(`Deleted ${deletedCheatingLogs.deletedCount} cheating logs for exam ${examId}`);
+  
+  // Now delete the exam
+  const deletedExam = await Exam.findOneAndDelete({ examId: examId });
+  console.log("deleted exam", deletedExam);
+  
+  res.status(200).json({
+    deletedExam,
+    deletedSubmissions: deletedSubmissions.deletedCount,
+    deletedQuestions: deletedQuestions.deletedCount,
+    deletedCheatingLogs: deletedCheatingLogs.deletedCount
+  });
 });
-
+  
 // @desc Get exam results by examId
 // @route GET /api/exams/results/:examId
 // @access Private (teacher/student)
@@ -223,7 +267,7 @@ const getExamResults = asyncHandler(async (req, res) => {
 // @access Private (student)
 const submitExam = asyncHandler(async (req, res) => {
   try {
-    const { examId, answers } = req.body;
+    const { examId, answers, status: incomingStatus, reason: incomingReason } = req.body;
     const studentId = req.user._id; // Student ID from protected middleware
 
     // Find the exam by its examId (UUID) to get its MongoDB _id
@@ -234,6 +278,19 @@ const submitExam = asyncHandler(async (req, res) => {
       throw new Error("Exam not found for submission");
     }
 
+    // Enforce exam availability window for students at submission time
+    const now = new Date();
+    const startsAt = new Date(exam.liveDate);
+    const endsAt = new Date(exam.deadDate);
+    if (Number.isFinite(startsAt.getTime()) && now < startsAt) {
+      res.status(403);
+      throw new Error("Exam has not started yet");
+    }
+    if (Number.isFinite(endsAt.getTime()) && now > endsAt) {
+      res.status(403);
+      throw new Error("Exam has expired");
+    }
+
     // Use the found exam's MongoDB _id for the submission
     const examObjectId = exam._id; // This will be a Mongoose ObjectId type
 
@@ -241,6 +298,23 @@ const submitExam = asyncHandler(async (req, res) => {
     console.log('Original Exam ID (UUID):', examId);
     console.log('Resolved Exam ObjectId:', examObjectId);
     console.log('Student ID:', studentId);
+
+    // Check current attempts for this student and exam
+    const existingSubmissions = await Submission.find({
+      examId: examObjectId,
+      studentId: studentId
+    }).sort({ attemptNumber: -1 });
+
+    const currentAttemptCount = existingSubmissions.length;
+    const maxAttempts = exam.maxAttempts || 1;
+
+    // Check if student has exceeded maximum attempts
+    if (currentAttemptCount >= maxAttempts) {
+      res.status(403);
+      throw new Error(`You have already used all ${maxAttempts} attempt(s) for this exam`);
+    }
+
+    const nextAttemptNumber = currentAttemptCount + 1;
 
     // Fetch all questions for this exam using the UUID examId
     const questions = await Question.find({ examId: examId });
@@ -272,8 +346,11 @@ const submitExam = asyncHandler(async (req, res) => {
     const submission = new Submission({
       examId: examObjectId,
       studentId,
+      attemptNumber: nextAttemptNumber,
       score,
       answers: processedAnswers, // Use processed answers
+      status: (incomingStatus && ['submitted','passed','failed','auto_failed'].includes(incomingStatus)) ? incomingStatus : 'submitted',
+      reason: incomingReason || undefined,
     });
 
     const savedSubmission = await submission.save();
@@ -322,7 +399,12 @@ const getStudentExamResult = asyncHandler(async (req, res) => {
     const submission = await Submission.findOne({ 
       examId: exam._id, // Use the resolved MongoDB ObjectId for examId
       studentId: paramStudentId 
-    }).populate('studentId', 'name email'); // Populate student details
+    })
+      .populate('studentId', 'name email') // Populate student details
+      .populate({
+        path: 'answers.questionId',
+        select: 'question options',
+      }); // Populate question details for rendering text and correct option
 
     console.log('Submission query parameters:', { examId: exam._id, studentId: paramStudentId });
     console.log('Found submission:', submission ? submission._id : 'No submission found');
@@ -332,7 +414,21 @@ const getStudentExamResult = asyncHandler(async (req, res) => {
       throw new Error("Submission not found for this student and exam");
     }
 
-    res.status(200).json(submission);
+    // Include exam coding questions in the response so the frontend can show them
+    const response = submission.toObject();
+    // Normalize coding questions: prefer array, fallback to single legacy field
+    let codingQs = [];
+    if (Array.isArray(exam.codingQuestions) && exam.codingQuestions.length > 0) {
+      codingQs = exam.codingQuestions.map(q => ({ question: q.question, description: q.description, duration: q.duration }));
+    } else if (exam.codingQuestion && (exam.codingQuestion.question || exam.codingQuestion.description)) {
+      codingQs = [{
+        question: exam.codingQuestion.question || '',
+        description: exam.codingQuestion.description || '',
+        duration: exam.codingQuestion.duration || 0,
+      }];
+    }
+    response.examCodingQuestions = codingQs;
+    res.status(200).json(response);
   } catch (error) {
     console.error('Error fetching student exam result:', error);
     res.status(500);
@@ -395,20 +491,40 @@ const getStudentStats = asyncHandler(async (req, res) => {
     const totalScore = submissions.reduce((sum, submission) => sum + submission.score, 0);
     const avgScore = completedExams > 0 ? (totalScore / completedExams).toFixed(1) : 0;
 
-    // Get recent submissions for activity
-    const recentSubmissions = submissions.slice(0, 5).map(submission => ({
-      examId: submission.examId._id,
-      examName: submission.examId.examName,
-      score: submission.score,
-      totalQuestions: submission.examId.totalQuestions,
-      submittedAt: submission.createdAt
-    }));
+    // Get recent submissions for activity (skip missing exam refs)
+    const recentSubmissions = submissions
+      .filter(submission => !!submission.examId)
+      .slice(0, 5)
+      .map(submission => ({
+        examId: submission.examId._id,
+        examName: submission.examId.examName,
+        score: submission.score,
+        totalQuestions: submission.examId.totalQuestions,
+        submittedAt: submission.createdAt,
+        codingSubmitted: !!(submission.codingAnswer && submission.codingAnswer.code),
+        codingLanguage: submission.codingAnswer?.language || null,
+        status: submission.status || 'submitted',
+        reason: submission.reason || null,
+      }));
 
     res.status(200).json({
       completedExams,
       avgScore: parseFloat(avgScore),
       totalScore,
-      recentSubmissions
+      recentSubmissions,
+      allSubmissions: submissions
+        .filter(submission => !!submission.examId)
+        .map(submission => ({
+          examId: submission.examId._id,
+          examName: submission.examId.examName,
+          score: submission.score,
+          totalQuestions: submission.examId.totalQuestions,
+          submittedAt: submission.createdAt,
+          codingSubmitted: !!(submission.codingAnswer && submission.codingAnswer.code),
+          codingLanguage: submission.codingAnswer?.language || null,
+          status: submission.status || 'submitted',
+          reason: submission.reason || null,
+        })),
     });
   } catch (error) {
     console.error('Error fetching student stats:', error);
@@ -438,18 +554,31 @@ const getTeacherSubmissions = asyncHandler(async (req, res) => {
     const submissions = await Submission.find({ examId: { $in: examIds } })
       .populate('studentId', 'name email')
       .populate('examId', 'examName totalQuestions')
+      .populate({ path: 'answers.questionId', select: 'question options' })
       .sort({ createdAt: -1 });
 
     // Format the response
     const formattedSubmissions = submissions.map(submission => ({
       submissionId: submission._id,
+      answers: submission.answers,
+      studentId: submission.studentId._id,
       studentName: submission.studentId.name,
       studentEmail: submission.studentId.email,
       examName: submission.examId.examName,
       score: submission.score,
       totalQuestions: submission.examId.totalQuestions,
       submittedAt: submission.createdAt,
-      examId: submission.examId._id
+      examId: submission.examId._id,
+      hasCodingAnswer: !!(submission.codingAnswer && submission.codingAnswer.code),
+      codingLanguage: submission.codingAnswer?.language || null,
+      cheatingLogsApproved: submission.cheatingLogsApproved || false,
+      cheatingLogsApprovedBy: submission.cheatingLogsApprovedBy,
+      cheatingLogsApprovedAt: submission.cheatingLogsApprovedAt,
+      failureReasonApproved: submission.failureReasonApproved || false,
+      failureReasonApprovedBy: submission.failureReasonApprovedBy,
+      failureReasonApprovedAt: submission.failureReasonApprovedAt,
+      status: submission.status,
+      reason: submission.reason
     }));
 
     res.status(200).json({
@@ -463,4 +592,201 @@ const getTeacherSubmissions = asyncHandler(async (req, res) => {
   }
 });
 
-export { getExams, getMyExams, getExamById, createExam, updateExam, DeleteExamById, getExamResults, submitExam, getStudentExamResult, getLastStudentSubmission, getStudentStats, getTeacherSubmissions };
+// @desc Get all submissions across all exams (no teacher filter)
+// @route GET /api/exams/all-submissions
+// @access Private (teacher/admin)
+const getAllSubmissions = asyncHandler(async (req, res) => {
+  try {
+    const submissions = await Submission.find({})
+      .populate('studentId', 'name email')
+      .populate('examId', 'examName totalQuestions')
+      .populate({ path: 'answers.questionId', select: 'question options' })
+      .sort({ createdAt: -1 });
+
+    const formattedSubmissions = submissions.map(submission => ({
+      submissionId: submission._id,
+      studentId: submission.studentId?._id,
+      studentName: submission.studentId?.name,
+      studentEmail: submission.studentId?.email,
+      examName: submission.examId?.examName,
+      score: submission.score,
+      totalQuestions: submission.examId?.totalQuestions,
+      submittedAt: submission.createdAt,
+      examId: submission.examId?._id,
+      answers: submission.answers,
+    }));
+
+    res.status(200).json({
+      totalSubmissions: formattedSubmissions.length,
+      submissions: formattedSubmissions,
+    });
+  } catch (error) {
+    console.error('Error fetching all submissions:', error);
+    res.status(500);
+    throw new Error(`Failed to fetch all submissions: ${error.message}`);
+  }
+});
+
+// @desc Update a submission's score (teacher/admin)
+// @route PUT /api/exams/submissions/:id/score
+// @access Private (teacher/admin)
+const updateSubmissionScore = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { score } = req.body;
+  if (typeof score !== 'number' || score < 0) {
+    res.status(400);
+    throw new Error('Invalid score');
+  }
+
+  const submission = await Submission.findById(id);
+  if (!submission) {
+    res.status(404);
+    throw new Error('Submission not found');
+  }
+
+  submission.score = score;
+  await submission.save();
+  res.status(200).json({ success: true, submission });
+});
+
+// @desc Update a submission's status and reason (teacher/admin or system)
+// @route PUT /api/exams/submissions/:id/status
+// @access Private
+const updateSubmissionStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { status, reason } = req.body;
+
+  const allowed = ['submitted', 'passed', 'failed', 'auto_failed'];
+  if (status && !allowed.includes(status)) {
+    res.status(400);
+    throw new Error('Invalid status');
+  }
+
+  const submission = await Submission.findById(id);
+  if (!submission) {
+    res.status(404);
+    throw new Error('Submission not found');
+  }
+
+  if (status) submission.status = status;
+  if (reason !== undefined) submission.reason = reason;
+
+  await submission.save();
+  res.status(200).json({ success: true, submission });
+});
+
+// @desc Approve cheating logs for a submission (teacher only)
+// @route PUT /api/exams/submissions/:id/approve-cheating-logs
+// @access Private (teacher/admin)
+const approveCheatingLogs = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { approve } = req.body; // true or false
+
+  // Only teachers can approve cheating logs
+  if (req.user.role !== 'teacher') {
+    res.status(403);
+    throw new Error('Only teachers can approve cheating logs');
+  }
+
+  const submission = await Submission.findById(id).populate('studentId', 'name email');
+  if (!submission) {
+    res.status(404);
+    throw new Error('Submission not found');
+  }
+
+  // Update the approval status
+  submission.cheatingLogsApproved = approve;
+  if (approve) {
+    submission.cheatingLogsApprovedBy = req.user._id;
+    submission.cheatingLogsApprovedAt = new Date();
+  } else {
+    submission.cheatingLogsApprovedBy = undefined;
+    submission.cheatingLogsApprovedAt = undefined;
+  }
+
+  await submission.save();
+  
+  res.status(200).json({ 
+    success: true, 
+    message: approve ? 'Cheating logs approved for student' : 'Cheating logs approval revoked',
+    submission 
+  });
+});
+
+// @desc Approve failure reason display for a submission (teacher only)
+// @route PUT /api/exams/submissions/:id/approve-failure-reason
+// @access Private (teacher/admin)
+const approveFailureReason = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { approve } = req.body; // true or false
+
+  // Only teachers can approve failure reason display
+  if (req.user.role !== 'teacher') {
+    res.status(403);
+    throw new Error('Only teachers can approve failure reason display');
+  }
+
+  const submission = await Submission.findById(id).populate('studentId', 'name email');
+  if (!submission) {
+    res.status(404);
+    throw new Error('Submission not found');
+  }
+
+  // Update the approval status
+  submission.failureReasonApproved = approve;
+  if (approve) {
+    submission.failureReasonApprovedBy = req.user._id;
+    submission.failureReasonApprovedAt = new Date();
+  } else {
+    submission.failureReasonApprovedBy = undefined;
+    submission.failureReasonApprovedAt = undefined;
+  }
+
+  await submission.save();
+  
+  res.status(200).json({ 
+    success: true, 
+    message: approve ? 'Failure reason approved for student' : 'Failure reason approval revoked',
+    submission 
+  });
+});
+
+// Check exam attempts for a student
+const checkExamAttempts = asyncHandler(async (req, res) => {
+  try {
+    const { examId } = req.params;
+    const studentId = req.user._id;
+
+    // Find the exam
+    const exam = await Exam.findOne({ examId });
+    if (!exam) {
+      res.status(404);
+      throw new Error("Exam not found");
+    }
+
+    // Get existing submissions
+    const existingSubmissions = await Submission.find({
+      examId: exam._id,
+      studentId: studentId
+    }).sort({ attemptNumber: -1 });
+
+    const currentAttemptCount = existingSubmissions.length;
+    const maxAttempts = exam.maxAttempts || 1;
+    const remainingAttempts = maxAttempts - currentAttemptCount;
+    const canTakeExam = remainingAttempts > 0;
+
+    res.status(200).json({
+      canTakeExam,
+      currentAttemptCount,
+      maxAttempts,
+      remainingAttempts,
+      lastSubmission: existingSubmissions[0] || null
+    });
+  } catch (error) {
+    console.error('Error checking exam attempts:', error);
+    res.status(500);
+    throw new Error('Failed to check exam attempts');
+  }
+});
+
+export { getExams, getMyExams, getExamById, createExam, updateExam, DeleteExamById, getExamResults, submitExam, getStudentExamResult, getLastStudentSubmission, getStudentStats, getTeacherSubmissions, getAllSubmissions, updateSubmissionScore, updateSubmissionStatus, approveCheatingLogs, approveFailureReason, checkExamAttempts };
