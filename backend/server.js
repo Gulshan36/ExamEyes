@@ -43,10 +43,8 @@ app.use(cookieParser());
 
 // Configure CORS to allow credentials from your frontend origin
 app.use(cors({
-  origin: ["http://localhost:5173", "https://exam-eye.vercel.app", "https://exam-eyes.vercel.app"],
+  origin: 'http://localhost:5173',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Code Execution Endpoints
@@ -119,7 +117,7 @@ if (process.env.NODE_ENV === "production") {
   });
 } else {
   app.get("/", (req, res) => {
-    res.send("<h1>API Server is Running</h1><p>Environment: " + process.env.NODE_ENV + "</p>");
+    res.send("<h1>API Server is Working</h1><p>Environment: " + process.env.NODE_ENV + "</p>");
   });
 }
 
