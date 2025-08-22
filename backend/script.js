@@ -1,6 +1,1 @@
-// swdefrgtnhjm,kl
-
-// Write your code here...
-
-
-console.log("hello world")
+console.log("Hello World")
