@@ -41,7 +41,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://exam-eyes.vercel.app/',
+        target: 'http://localhost:5001',
         changeOrigin: true,
       },
     },
