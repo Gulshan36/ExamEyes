@@ -314,7 +314,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Gulshan Kumar**
 - GitHub: [@Gulshan36](https://github.com/Gulshan36)
-- Email: your.email@example.com
+- Email: gulshan311604@gmail.com
 
 ## 🙏 Acknowledgments
 
@@ -325,10 +325,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-For support, email your.email@example.com or create an issue in this repository.
+For support, email gulshan311604@gmail.com or create an issue in this repository.
 
 ---
 
 <div align="center">
-  Made with ❤️ by Gulshan Kumar
+  Made with ❤️ by Gulshan Kumar & Vivek Kumar
 </div>
